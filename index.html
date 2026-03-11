@@ -1162,7 +1162,7 @@ function renderStats(races, schedule) {
   }
 
   // Season progress bar
-  document.getElementById('season-bar').style.width = `${(n / TOTAL_ROUNDS) * 100}%`;
+  document.getElementById('season-bar').style.width = `${(n / totalRounds) * 100}%`;
 
   // Next race
   const now = new Date(); now.setHours(0,0,0,0);
