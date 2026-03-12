@@ -236,11 +236,18 @@
 
     /* ─── Chart canvas ─── */
     .chart-wrap {
-      position: relative;
-      height: 400px;
       background: var(--surface);
       border-radius: 6px;
       padding: 16px;
+      overflow-x: auto;
+    }
+    .chart-wrap::-webkit-scrollbar { height: 6px; }
+    .chart-wrap::-webkit-scrollbar-track { background: var(--surface); }
+    .chart-wrap::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+    .chart-scroll {
+      position: relative;
+      height: 400px;
+      min-width: 100%;
     }
 
     /* ─── Legend ─── */
@@ -259,6 +266,8 @@
     }
     .legend-item:hover { border-color: var(--border2); }
     .legend-item.muted { opacity: 0.35; }
+    .legend-none { color: var(--text2); opacity: 0.6; font-size: 11px; letter-spacing: 0.03em; }
+    .legend-none:hover { opacity: 1; }
     .legend-color {
       width: 24px; height: 3px; border-radius: 2px; flex-shrink: 0;
     }
@@ -472,7 +481,8 @@
     @media (max-width: 600px) {
       .logo h1 { font-size: 16px; }
       .stats-strip { grid-template-columns: 1fr 1fr; }
-      .chart-wrap { height: 280px; padding: 10px; }
+      .chart-wrap { padding: 10px; }
+      .chart-scroll { height: 280px; }
       .filter-chips .chip { padding: 4px 10px; font-size: 11px; }
     }
   </style>
@@ -585,15 +595,18 @@
       <span id="chart-subtitle">Cumulative championship points per race</span>
     </div>
     <div class="filter-chips" id="filter-chips">
-      <div class="chip active" data-n="5"  onclick="setFilter(5)">Top 5</div>
-      <div class="chip"        data-n="10" onclick="setFilter(10)">Top 10</div>
-      <div class="chip"        data-n="0"  onclick="setFilter(0)">All</div>
+      <div class="chip"        data-n="h2h" onclick="setFilter('h2h')">H2H</div>
+      <div class="chip active" data-n="5"   onclick="setFilter(5)">Top 5</div>
+      <div class="chip"        data-n="10"  onclick="setFilter(10)">Top 10</div>
+      <div class="chip"        data-n="0"   onclick="setFilter(0)">All</div>
     </div>
   </div>
 
   <!-- Chart -->
   <div class="chart-wrap">
-    <canvas id="main-chart"></canvas>
+    <div class="chart-scroll">
+      <canvas id="main-chart"></canvas>
+    </div>
   </div>
 
   <!-- Legend -->
@@ -699,6 +712,7 @@ let state = {
   schedule:     [],
   chart:        null,
   hiddenSeries: new Set(),
+  h2hPick:      [],
   fallbackIndex: 0,
   dropdownOpen: false,
 };
@@ -783,6 +797,7 @@ async function selectYear(year) {
   closeDropdown();
   state.season = year;
   state.hiddenSeries.clear();
+  state.h2hPick = [];
   state.tab    = 'drivers';
   state.filter = 5;
   // Reset tab UI
@@ -866,6 +881,35 @@ async function apiFetch(path) {
   return res.json();
 }
 
+// Fetch all race results across API pages, merging by round
+async function fetchAllRaces(basePath) {
+  const PAGE = 100;
+  const first = await apiFetch(`${basePath}?limit=${PAGE}&offset=0`);
+  const total = parseInt(first.MRData.total, 10);
+  const byRound = {};
+  for (const race of first.MRData.RaceTable.Races) byRound[race.round] = race;
+
+  if (total > PAGE) {
+    const offsets = [];
+    for (let off = PAGE; off < total; off += PAGE) offsets.push(off);
+    const pages = await Promise.all(
+      offsets.map(off => apiFetch(`${basePath}?limit=${PAGE}&offset=${off}`))
+    );
+    for (const page of pages) {
+      for (const race of page.MRData.RaceTable.Races) {
+        if (byRound[race.round]) {
+          const resultsKey = race.Results ? 'Results' : race.SprintResults ? 'SprintResults' : null;
+          if (resultsKey) byRound[race.round][resultsKey].push(...race[resultsKey]);
+        } else {
+          byRound[race.round] = race;
+        }
+      }
+    }
+  }
+
+  return Object.values(byRound).sort((a, b) => parseInt(a.round) - parseInt(b.round));
+}
+
 /* ═══════════════════════════════════════════════
    Data processing
 ═══════════════════════════════════════════════ */
@@ -939,7 +983,7 @@ function processRaces(races) {
    Chart
 ═══════════════════════════════════════════════ */
 function buildDatasets(items, filter, hidden) {
-  const count = filter === 0 ? items.length : Math.min(filter, items.length);
+  const count = (filter === 0 || filter === 'h2h') ? items.length : Math.min(filter, items.length);
   return items.slice(0, count).map((item, i) => {
     const color = item.constructorId
       ? teamColor(item.constructorId)
@@ -973,11 +1017,20 @@ function renderChart() {
 
   const cc = chartColors();
 
+  // Set canvas width so all race labels fit (min 52px per race)
+  const scrollEl = canvas.parentElement;
+  const h = scrollEl.clientHeight || 400;
+  const minW = Math.max(scrollEl.clientWidth, labels.length * 52);
+  canvas.style.width  = minW + 'px';
+  canvas.style.height = h + 'px';
+  canvas.width  = minW;
+  canvas.height = h;
+
   state.chart = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets },
     options: {
-      responsive: true,
+      responsive: false,
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       animation: { duration: 400 },
@@ -999,7 +1052,7 @@ function renderChart() {
       scales: {
         x: {
           grid: { color: cc.grid, drawBorder: false },
-          ticks: { color: cc.ticks, font: { size: 11 }, maxRotation: 0 },
+          ticks: { color: cc.ticks, font: { size: 11 }, maxRotation: 0, autoSkip: false },
         },
         y: {
           grid: { color: cc.grid, drawBorder: false },
@@ -1017,17 +1070,54 @@ function renderChart() {
 function renderLegend(datasets, items) {
   const el = document.getElementById('chart-legend');
   el.innerHTML = '';
-  datasets.forEach((ds, i) => {
-    const item    = ds._itemRef;
-    const id      = item.id || item.name;
-    const hidden  = state.hiddenSeries.has(id);
-    const div     = document.createElement('div');
+
+  // None / All toggle button
+  const allHidden = datasets.every(ds => state.hiddenSeries.has(ds._itemRef.id || ds._itemRef.name));
+  const noneBtn = document.createElement('div');
+  noneBtn.className = 'legend-item legend-none';
+  noneBtn.textContent = allHidden ? '◎ All' : '✕ None';
+  noneBtn.title = allHidden ? 'Show all' : 'Deselect all';
+  noneBtn.addEventListener('click', () => {
+    if (allHidden) {
+      state.hiddenSeries.clear();
+    } else {
+      datasets.forEach(ds => state.hiddenSeries.add(ds._itemRef.id || ds._itemRef.name));
+      state.h2hPick = [];
+    }
+    renderChart();
+  });
+  el.appendChild(noneBtn);
+
+  datasets.forEach(ds => {
+    const item   = ds._itemRef;
+    const id     = item.id || item.name;
+    const hidden = state.hiddenSeries.has(id);
+    const div    = document.createElement('div');
     div.className = 'legend-item' + (hidden ? ' muted' : '');
     div.innerHTML = `<div class="legend-color" style="background:${ds.borderColor}"></div>${ds.label}`;
-    div.title     = `Click to show/hide ${ds.label}`;
+    div.title     = state.filter === 'h2h'
+      ? (hidden ? `Select ${ds.label}` : `Deselect ${ds.label}`)
+      : `Click to show/hide ${ds.label}`;
     div.addEventListener('click', () => {
-      if (state.hiddenSeries.has(id)) { state.hiddenSeries.delete(id); }
-      else { state.hiddenSeries.add(id); }
+      if (state.filter === 'h2h') {
+        const idx = state.h2hPick.indexOf(id);
+        if (idx !== -1) {
+          // Deselect: hide it
+          state.h2hPick.splice(idx, 1);
+          state.hiddenSeries.add(id);
+        } else {
+          // Select: if already 2 picked, evict the oldest
+          if (state.h2hPick.length >= 2) {
+            const evicted = state.h2hPick.shift();
+            state.hiddenSeries.add(evicted);
+          }
+          state.h2hPick.push(id);
+          state.hiddenSeries.delete(id);
+        }
+      } else {
+        if (state.hiddenSeries.has(id)) { state.hiddenSeries.delete(id); }
+        else { state.hiddenSeries.add(id); }
+      }
       renderChart();
     });
     el.appendChild(div);
@@ -1210,6 +1300,7 @@ function renderCalendar(schedule, completedRounds) {
 function switchTab(tab) {
   state.tab = tab;
   state.hiddenSeries.clear();
+  state.h2hPick = [];
   document.getElementById('tab-drivers').classList.toggle('active', tab === 'drivers');
   document.getElementById('tab-ctors').classList.toggle('active', tab === 'constructors');
   document.getElementById('chart-title').firstChild.textContent =
@@ -1222,6 +1313,8 @@ function switchTab(tab) {
 
   // If constructors and filter was 10, reset to 5
   if (tab === 'constructors' && state.filter === 10) setFilter(5, false);
+  // Re-init H2H picks for new tab's items
+  else if (state.filter === 'h2h') setFilter('h2h', false);
 
   document.getElementById('table-title').textContent =
     tab === 'drivers' ? 'Driver Standings' : 'Constructor Standings';
@@ -1233,8 +1326,18 @@ function switchTab(tab) {
 function setFilter(n, redraw = true) {
   state.filter = n;
   document.querySelectorAll('.chip').forEach(c => {
-    c.classList.toggle('active', parseInt(c.dataset.n) === n);
+    c.classList.toggle('active', c.dataset.n === String(n));
   });
+  if (n === 'h2h') {
+    const items = state.tab === 'drivers' ? state.driverData : state.ctorData;
+    state.h2hPick = items.slice(0, 2).map(item => item.id || item.name);
+    state.hiddenSeries = new Set(
+      items.slice(2).map(item => item.id || item.name)
+    );
+  } else {
+    state.h2hPick = [];
+    state.hiddenSeries.clear();
+  }
   if (redraw) renderChart();
 }
 
@@ -1254,19 +1357,18 @@ async function loadSeason(year) {
   }
 
   try {
-    const [scheduleJson, resultsJson, sprintJson] = await Promise.all([
+    const [scheduleJson, resultRaces, sprintRaces] = await Promise.all([
       apiFetch(`${year}.json?limit=100`),
-      apiFetch(`${year}/results.json?limit=1000`),
-      apiFetch(`${year}/sprint.json?limit=200`).catch(() => null),
+      fetchAllRaces(`${year}/results`),
+      fetchAllRaces(`${year}/sprint`).catch(() => []),
     ]);
 
-    const schedule    = scheduleJson.MRData.RaceTable.Races;
-    const resultRaces = resultsJson.MRData.RaceTable.Races;
+    const schedule = scheduleJson.MRData.RaceTable.Races;
 
     // Merge sprint points
-    if (sprintJson?.MRData?.RaceTable?.Races?.length) {
+    if (sprintRaces.length) {
       const sprintMap = {};
-      sprintJson.MRData.RaceTable.Races.forEach(sr => {
+      sprintRaces.forEach(sr => {
         sprintMap[sr.round] = sr.SprintResults || [];
       });
       resultRaces.forEach(race => {
