@@ -269,6 +269,18 @@
       min-width: 100%;
     }
 
+    /* ─── Chart loading overlay ─── */
+    .chart-loader {
+      position: absolute; inset: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--surface);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s;
+      border-radius: 4px;
+    }
+    .chart-loader.visible { opacity: 0.93; pointer-events: all; }
+    .chart-loader .spinner { width: 28px; height: 28px; }
+
     /* ─── Legend ─── */
     .legend {
       display: flex; flex-wrap: wrap;
@@ -696,7 +708,8 @@
 
   <!-- Chart -->
   <div class="chart-wrap">
-    <div class="chart-scroll">
+    <div class="chart-scroll" id="main-scroll">
+      <div class="chart-loader" id="main-chart-loader"><div class="spinner"></div></div>
       <canvas id="main-chart"></canvas>
     </div>
   </div>
@@ -735,6 +748,7 @@
   </div>
   <div class="chart-wrap">
     <div class="career-scroll" id="career-scroll">
+      <div class="chart-loader" id="career-chart-loader"><div class="spinner"></div></div>
       <canvas id="career-chart"></canvas>
     </div>
   </div>
@@ -1566,6 +1580,10 @@ function renderCalendar(schedule, completedRounds) {
 /* ═══════════════════════════════════════════════
    Tab / filter controls
 ═══════════════════════════════════════════════ */
+function setChartLoading(id, show) {
+  document.getElementById(id)?.classList.toggle('visible', show);
+}
+
 function setChartMode(mode) {
   state.chartMode = mode;
   document.getElementById('mode-btn-points').classList.toggle('active', mode === 'points');
@@ -1683,9 +1701,7 @@ async function selectCompareYear(year) {
   if (year === state.compareSeason) return;
   state.compareSeason = year;
   updateCompareBtn();
-  // Load compare season data
-  const btn = document.getElementById('compare-btn');
-  btn.style.opacity = '0.6';
+  setChartLoading('main-chart-loader', true);
   try {
     const races = await fetchAllRaces(`${year}/results`);
     const { drivers, labels } = processRaces(races);
@@ -1696,7 +1712,7 @@ async function selectCompareYear(year) {
     state.compareDriverData = [];
     state.compareRaceLabels = [];
   }
-  btn.style.opacity = '';
+  setChartLoading('main-chart-loader', false);
   updateCompareBtn();
   renderChart();
 }
@@ -1757,15 +1773,18 @@ async function showDriverCareer(driverId, driverName) {
   const careerEl = document.getElementById('career-view');
   careerEl.style.display = '';
   document.getElementById('career-title').firstChild.textContent = `${driverName} `;
-  document.getElementById('career-subtitle').textContent = 'Loading career data…';
+  document.getElementById('career-subtitle').textContent = '';
+  setChartLoading('career-chart-loader', true);
 
   let seasons;
   try {
     seasons = await fetchDriverCareer(driverId);
   } catch (e) {
+    setChartLoading('career-chart-loader', false);
     document.getElementById('career-subtitle').textContent = 'Failed to load career data.';
     return;
   }
+  setChartLoading('career-chart-loader', false);
 
   const years    = seasons.map(s => s.season);
   const standing = seasons.map(s => parseInt(s.DriverStandings[0].position, 10));
@@ -1915,11 +1934,8 @@ async function loadSeason(year) {
   if (overlay) {
     overlay.classList.remove('hidden');
     document.getElementById('loading-text').textContent = `Fetching ${year} season data…`;
-  } else {
-    // Subsequent loads: dim the panel instead
-    document.querySelector('.panel').style.opacity = '0.4';
-    document.querySelector('.panel').style.pointerEvents = 'none';
   }
+  setChartLoading('main-chart-loader', true);
 
   try {
     const [scheduleJson, resultRaces, sprintRaces] = await Promise.all([
@@ -1974,22 +1990,19 @@ async function loadSeason(year) {
     updateSeasonChrome(year);
 
     // Hide loading
+    setChartLoading('main-chart-loader', false);
     if (overlay) {
       overlay.classList.add('hidden');
       setTimeout(() => overlay.remove(), 500);
-    } else {
-      document.querySelector('.panel').style.opacity = '';
-      document.querySelector('.panel').style.pointerEvents = '';
     }
 
   } catch (err) {
     console.error(err);
+    setChartLoading('main-chart-loader', false);
     const banner = document.getElementById('error-banner');
     banner.style.display = 'block';
     banner.textContent = `⚠️ Could not load ${year} season data: ${err.message}. Check your connection and try again.`;
     if (overlay) overlay.classList.add('hidden');
-    document.querySelector('.panel').style.opacity = '';
-    document.querySelector('.panel').style.pointerEvents = '';
   }
 }
 
