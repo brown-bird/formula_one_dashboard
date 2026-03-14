@@ -1735,19 +1735,18 @@ document.addEventListener('click', e => {
 let careerChart = null;
 
 async function fetchDriverCareer(driverId) {
-  const PAGE = 100;
-  const first = await apiFetch(`drivers/${driverId}/driverStandings?limit=${PAGE}&offset=0`);
-  const total = parseInt(first.MRData.total, 10);
-  const lists = [...first.MRData.StandingsTable.StandingsLists];
-  if (total > PAGE) {
-    const offsets = [];
-    for (let off = PAGE; off < total; off += PAGE) offsets.push(off);
-    const pages = await Promise.all(
-      offsets.map(off => apiFetch(`drivers/${driverId}/driverStandings?limit=${PAGE}&offset=${off}`))
-    );
-    for (const p of pages) lists.push(...p.MRData.StandingsTable.StandingsLists);
-  }
-  return lists
+  // Step 1: get all seasons the driver competed in
+  const seasonsData = await apiFetch(`drivers/${driverId}/seasons/?limit=200&offset=0`);
+  const years = seasonsData.MRData.SeasonTable.Seasons.map(s => s.season);
+
+  // Step 2: fetch final standings for each season in parallel
+  const results = await Promise.all(
+    years.map(y => apiFetch(`${y}/drivers/${driverId}/driverStandings/`).catch(() => null))
+  );
+
+  return results
+    .filter(r => r?.MRData?.StandingsTable?.StandingsLists?.length)
+    .map(r => r.MRData.StandingsTable.StandingsLists[0])
     .filter(l => l.DriverStandings?.length)
     .sort((a, b) => parseInt(a.season) - parseInt(b.season));
 }
