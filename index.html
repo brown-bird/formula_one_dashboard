@@ -1083,6 +1083,7 @@ function buildDatasets(items, filter, hidden) {
       tension:         0.25,
       fill:            false,
       spanGaps:        usePosition,
+      clip:            usePosition ? false : undefined,
       hidden:          isHidden,
       _itemRef:        item,
       _dashed:         borderDash.length > 0,
