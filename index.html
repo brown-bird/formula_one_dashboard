@@ -525,6 +525,35 @@
       display: block; font-size: 11px;
       font-weight: 400; color: var(--muted); margin-top: 2px;
     }
+    .ctor-picker { position: relative; display: inline-block; }
+    .ctor-picker-btn {
+      display: flex; align-items: center; gap: 8px; cursor: pointer;
+      background: none; border: none; padding: 0;
+      font-size: 17px; font-weight: 700; color: var(--text);
+      transition: color 0.15s;
+    }
+    .ctor-picker-btn:hover { color: var(--accent); }
+    .ctor-picker-chevron { font-size: 12px; color: var(--muted); transition: transform 0.15s; }
+    .ctor-picker-btn.open .ctor-picker-chevron { transform: rotate(180deg); color: var(--accent); }
+    .ctor-picker-list {
+      position: absolute; top: calc(100% + 6px); left: 0;
+      background: #1a1a1a; border: 1px solid #3a3a3a;
+      border-radius: 8px; padding: 6px; min-width: 210px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6); z-index: 300;
+      opacity: 0; transform: translateY(-6px); pointer-events: none;
+      transition: opacity 0.15s, transform 0.15s;
+      max-height: 300px; overflow-y: auto;
+    }
+    .ctor-picker-list.open { opacity: 1; transform: translateY(0); pointer-events: all; }
+    .ctor-picker-option {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px; border-radius: 5px; cursor: pointer;
+      font-size: 14px; font-weight: 600; color: var(--text2);
+      transition: background 0.1s, color 0.1s;
+    }
+    .ctor-picker-option:hover { background: #2a2a2a; color: var(--text); }
+    .ctor-picker-option.selected { color: var(--text); background: #2a0a0a; }
+    .ctor-picker-option .team-stripe { width: 3px; height: 16px; border-radius: 2px; flex-shrink: 0; }
     .career-scroll { height: 340px; position: relative; min-width: 100%; }
     tbody tr.clickable { cursor: pointer; }
     tbody tr.clickable:hover td { background: var(--row-hover); }
@@ -1573,8 +1602,31 @@ async function showDriverCareer(driverId, driverName) {
   document.getElementById('season-view').style.display = 'none';
   const careerEl = document.getElementById('career-view');
   careerEl.style.display = '';
-  document.getElementById('career-title').firstChild.textContent = `${driverName} `;
-  document.getElementById('career-subtitle').textContent = '';
+  // Build picker in the title slot
+  document.getElementById('career-title').innerHTML = `
+    <div class="ctor-picker" id="ctor-picker">
+      <button class="ctor-picker-btn" id="ctor-picker-btn" onclick="toggleCtorPicker()">
+        <span id="ctor-picker-label"></span>
+        <span class="ctor-picker-chevron">▾</span>
+      </button>
+      <div class="ctor-picker-list" id="ctor-picker-list"></div>
+    </div>
+    <span id="career-subtitle"></span>`;
+
+  // Populate list from current season's drivers
+  const list = document.getElementById('ctor-picker-list');
+  state.driverData.forEach(d => {
+    const opt = document.createElement('div');
+    opt.className = 'ctor-picker-option' + (d.id === driverId ? ' selected' : '');
+    opt.innerHTML = `<span class="team-stripe" style="background:${teamColor(d.constructorId)}"></span>${d.name}`;
+    opt.addEventListener('click', () => {
+      closeCtorPicker();
+      showDriverCareer(d.id, d.name);
+    });
+    list.appendChild(opt);
+  });
+  document.getElementById('ctor-picker-label').textContent = driverName;
+
   setChartLoading('career-chart-loader', true);
 
   let seasons;
@@ -1726,6 +1778,24 @@ function hideDriverCareer() {
   document.getElementById('season-view').style.display = '';
 }
 
+function toggleCtorPicker() {
+  const list = document.getElementById('ctor-picker-list');
+  const btn  = document.getElementById('ctor-picker-btn');
+  if (!list) return;
+  const open = list.classList.toggle('open');
+  btn?.classList.toggle('open', open);
+}
+
+function closeCtorPicker() {
+  document.getElementById('ctor-picker-list')?.classList.remove('open');
+  document.getElementById('ctor-picker-btn')?.classList.remove('open');
+}
+
+document.addEventListener('click', e => {
+  const picker = document.getElementById('ctor-picker');
+  if (picker && !picker.contains(e.target)) closeCtorPicker();
+});
+
 async function fetchConstructorCareer(constructorId) {
   const seasonsData = await apiFetch(`constructors/${constructorId}/seasons/?limit=200&offset=0`);
   const years = seasonsData.MRData.SeasonTable.Seasons.map(s => s.season);
@@ -1742,8 +1812,31 @@ async function fetchConstructorCareer(constructorId) {
 async function showConstructorCareer(constructorId, constructorName) {
   document.getElementById('season-view').style.display = 'none';
   document.getElementById('career-view').style.display = '';
-  document.getElementById('career-title').firstChild.textContent = `${constructorName} `;
-  document.getElementById('career-subtitle').textContent = '';
+  // Build picker in the title slot
+  document.getElementById('career-title').innerHTML = `
+    <div class="ctor-picker" id="ctor-picker">
+      <button class="ctor-picker-btn" id="ctor-picker-btn" onclick="toggleCtorPicker()">
+        <span id="ctor-picker-label"></span>
+        <span class="ctor-picker-chevron">▾</span>
+      </button>
+      <div class="ctor-picker-list" id="ctor-picker-list"></div>
+    </div>
+    <span id="career-subtitle"></span>`;
+
+  // Populate list from current season's constructors
+  const list = document.getElementById('ctor-picker-list');
+  state.ctorData.forEach(c => {
+    const opt = document.createElement('div');
+    opt.className = 'ctor-picker-option' + (c.id === constructorId ? ' selected' : '');
+    opt.innerHTML = `<span class="team-stripe" style="background:${teamColor(c.id)}"></span>${c.name}`;
+    opt.addEventListener('click', () => {
+      closeCtorPicker();
+      showConstructorCareer(c.id, c.name);
+    });
+    list.appendChild(opt);
+  });
+  document.getElementById('ctor-picker-label').textContent = constructorName;
+
   setChartLoading('career-chart-loader', true);
 
   let seasons;
