@@ -497,6 +497,26 @@
     }
     #hist-banner a:hover { color: #70b0ee; }
 
+    /* ─── Career view ─── */
+    .career-header {
+      display: flex; align-items: center; gap: 16px;
+      margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .career-back {
+      background: var(--surface2); border: 1px solid var(--border2);
+      color: var(--text2); padding: 6px 14px; border-radius: 6px;
+      font-size: 13px; cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+    }
+    .career-back:hover { border-color: var(--accent); color: var(--text); }
+    .career-title { font-size: 17px; font-weight: 700; }
+    .career-title span {
+      display: block; font-size: 11px;
+      font-weight: 400; color: var(--muted); margin-top: 2px;
+    }
+    .career-scroll { height: 340px; position: relative; min-width: 100%; }
+    tbody tr.clickable { cursor: pointer; }
+    tbody tr.clickable:hover td { background: var(--row-hover); }
+
     /* ─── Responsive ─── */
     @media (max-width: 900px) {
       header { padding: 0 16px; }
@@ -615,6 +635,9 @@
 <!-- Main panel -->
 <div class="panel">
 
+<!-- Season view (hidden when career view is active) -->
+<div id="season-view">
+
   <!-- Chart controls -->
   <div class="chart-header">
     <div class="chart-title" id="chart-title">
@@ -662,6 +685,32 @@
     <div class="standings-title" id="calendar-title">2026 Race Calendar</div>
     <div class="calendar-list" id="calendar-list"></div>
   </div>
+
+</div><!-- /season-view -->
+
+<!-- Career view (shown when a driver is selected) -->
+<div id="career-view" style="display:none">
+  <div class="career-header">
+    <button class="career-back" onclick="hideDriverCareer()">← Season View</button>
+    <div class="career-title" id="career-title">
+      Driver Career
+      <span id="career-subtitle"></span>
+    </div>
+  </div>
+  <div class="chart-wrap">
+    <div class="career-scroll" id="career-scroll">
+      <canvas id="career-chart"></canvas>
+    </div>
+  </div>
+  <div class="divider"></div>
+  <div class="standings-title">Season by Season</div>
+  <div class="table-wrap">
+    <table>
+      <thead id="career-table-head"></thead>
+      <tbody id="career-table-body"></tbody>
+    </table>
+  </div>
+</div><!-- /career-view -->
 
 </div>
 
@@ -853,6 +902,7 @@ function closeDropdown() {
 async function selectYear(year) {
   if (year === state.season) { closeDropdown(); return; }
   closeDropdown();
+  hideDriverCareer();
   state.season = year;
   state.hiddenSeries.clear();
   state.h2hPick = [];
@@ -1272,6 +1322,12 @@ function renderTable() {
     const tr = document.createElement('tr');
 
     if (isDrivers) {
+      tr.className = 'clickable';
+      tr.title = `View ${item.name}'s career`;
+      tr.addEventListener('click', () => showDriverCareer(item.id, item.name));
+    }
+
+    if (isDrivers) {
       tr.innerHTML = `
         <td class="td-pos ${posClass}">${pos}</td>
         <td class="td-name">${item.name}<small>${item.abbr || ''}</small></td>
@@ -1408,6 +1464,7 @@ function setChartMode(mode) {
 }
 
 function switchTab(tab) {
+  hideDriverCareer();
   state.tab = tab;
   state.hiddenSeries.clear();
   state.h2hPick = [];
@@ -1461,6 +1518,184 @@ function setFilter(n, redraw = true) {
     state.hiddenSeries.clear();
   }
   if (redraw) renderChart();
+}
+
+/* ═══════════════════════════════════════════════
+   Driver Career Arc
+═══════════════════════════════════════════════ */
+let careerChart = null;
+
+async function fetchDriverCareer(driverId) {
+  const PAGE = 100;
+  const first = await apiFetch(`drivers/${driverId}/driverStandings?limit=${PAGE}&offset=0`);
+  const total = parseInt(first.MRData.total, 10);
+  const lists = [...first.MRData.StandingsTable.StandingsLists];
+  if (total > PAGE) {
+    const offsets = [];
+    for (let off = PAGE; off < total; off += PAGE) offsets.push(off);
+    const pages = await Promise.all(
+      offsets.map(off => apiFetch(`drivers/${driverId}/driverStandings?limit=${PAGE}&offset=${off}`))
+    );
+    for (const p of pages) lists.push(...p.MRData.StandingsTable.StandingsLists);
+  }
+  return lists
+    .filter(l => l.DriverStandings?.length)
+    .sort((a, b) => parseInt(a.season) - parseInt(b.season));
+}
+
+async function showDriverCareer(driverId, driverName) {
+  // Show loading indicator on the panel
+  document.getElementById('season-view').style.display = 'none';
+  const careerEl = document.getElementById('career-view');
+  careerEl.style.display = '';
+  document.getElementById('career-title').firstChild.textContent = `${driverName} `;
+  document.getElementById('career-subtitle').textContent = 'Loading career data…';
+
+  let seasons;
+  try {
+    seasons = await fetchDriverCareer(driverId);
+  } catch (e) {
+    document.getElementById('career-subtitle').textContent = 'Failed to load career data.';
+    return;
+  }
+
+  const years    = seasons.map(s => s.season);
+  const standing = seasons.map(s => parseInt(s.DriverStandings[0].position, 10));
+  const points   = seasons.map(s => parseFloat(s.DriverStandings[0].points));
+  const wins     = seasons.map(s => parseInt(s.DriverStandings[0].wins, 10));
+  const teams    = seasons.map(s => s.DriverStandings[0].Constructors?.[0]);
+
+  const championships = seasons
+    .filter(s => s.DriverStandings[0].position === '1')
+    .map(s => s.season);
+
+  const totalWins  = wins.reduce((a, b) => a + b, 0);
+  const seasonsN   = years.length;
+  document.getElementById('career-subtitle').textContent =
+    `${seasonsN} season${seasonsN !== 1 ? 's' : ''} · ${totalWins} win${totalWins !== 1 ? 's' : ''}` +
+    (championships.length ? ` · ${championships.length}× Champion` : '');
+
+  // Chart
+  if (careerChart) { careerChart.destroy(); careerChart = null; }
+
+  const scrollEl = document.getElementById('career-scroll');
+  const canvas   = document.getElementById('career-chart');
+  const minW     = Math.max(scrollEl.clientWidth, years.length * 56);
+  canvas.style.width  = minW + 'px';
+  canvas.style.height = '340px';
+  canvas.width  = minW;
+  canvas.height = 340;
+
+  const cc = chartColors();
+
+  // Per-point styling: gold for championships, accent otherwise
+  const ptColors = standing.map((_, i) => championships.includes(years[i]) ? '#ffd700' : 'var(--accent, #e10600)');
+  const ptRadius = standing.map((_, i) => championships.includes(years[i]) ? 8 : 5);
+
+  careerChart = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: years,
+      datasets: [{
+        label: driverName,
+        data: standing,
+        borderColor:          '#e10600',
+        backgroundColor:      '#e1060018',
+        borderWidth:          2.5,
+        pointRadius:          ptRadius,
+        pointHoverRadius:     8,
+        pointBackgroundColor: ptColors,
+        pointBorderColor:     ptColors,
+        tension:              0.25,
+        fill:                 false,
+        spanGaps:             true,
+        clip:                 false,
+      }],
+    },
+    options: {
+      responsive: false,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      animation: { duration: 400 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: cc.tooltip.bg,
+          borderColor:     cc.tooltip.border,
+          borderWidth: 1,
+          titleColor:  cc.tooltip.title,
+          bodyColor:   cc.tooltip.body,
+          padding: 12,
+          callbacks: {
+            title: its => {
+              const i = years.indexOf(its[0].label);
+              const t = teams[i];
+              return `${its[0].label}${t ? '  ·  ' + t.name : ''}${championships.includes(its[0].label) ? '  🏆' : ''}`;
+            },
+            label: item => {
+              const i = item.dataIndex;
+              return [
+                ` Championship: P${item.raw}`,
+                ` Points: ${points[i]}`,
+                ` Wins: ${wins[i]}`,
+              ];
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid:  { color: cc.grid, drawBorder: false },
+          ticks: { color: cc.ticks, font: { size: 11 }, maxRotation: 0 },
+        },
+        y: {
+          grid:    { color: cc.grid, drawBorder: false },
+          ticks:   { color: cc.ticks, font: { size: 11 }, stepSize: 1, callback: v => `P${v}` },
+          title:   { display: true, text: 'Championship Position', color: cc.axisTitle, font: { size: 11 } },
+          reverse: true,
+          min:     1,
+          max:     Math.max(...standing) + 1,
+          clip:    false,
+        },
+      },
+    },
+  });
+
+  // Season-by-season table
+  document.getElementById('career-table-head').innerHTML = `<tr>
+    <th style="width:60px">Year</th>
+    <th>Team</th>
+    <th style="text-align:right">Pos</th>
+    <th style="text-align:right">Points</th>
+    <th style="text-align:right">Wins</th>
+  </tr>`;
+
+  const tbody = document.getElementById('career-table-body');
+  tbody.innerHTML = '';
+  seasons.forEach((s, i) => {
+    const sd   = s.DriverStandings[0];
+    const team = sd.Constructors?.[0];
+    const isChamp = championships.includes(s.season);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="td-pos${isChamp ? ' p1' : ''}">${s.season}${isChamp ? ' 🏆' : ''}</td>
+      <td class="td-team">
+        ${team ? `<span class="team-badge">
+          <span class="team-stripe" style="background:${teamColor(team.constructorId)}"></span>
+          ${team.name}
+        </span>` : '—'}
+      </td>
+      <td class="td-pts" style="text-align:right">P${sd.position}</td>
+      <td class="td-pts" style="text-align:right">${sd.points}</td>
+      <td class="td-wins" style="text-align:right">${sd.wins}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function hideDriverCareer() {
+  if (careerChart) { careerChart.destroy(); careerChart = null; }
+  document.getElementById('career-view').style.display = 'none';
+  document.getElementById('season-view').style.display = '';
 }
 
 /* ═══════════════════════════════════════════════
