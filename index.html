@@ -509,36 +509,6 @@
     }
     #hist-banner a:hover { color: #70b0ee; }
 
-    /* ─── Season comparison selector ─── */
-    .compare-selector {
-      position: relative;
-    }
-    .compare-btn {
-      display: flex; align-items: center; gap: 6px;
-      padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
-      cursor: pointer; border: 1px solid var(--border2);
-      background: var(--surface); color: var(--muted);
-      transition: all 0.15s; user-select: none; white-space: nowrap;
-    }
-    .compare-btn:hover { border-color: var(--accent); color: var(--text2); }
-    .compare-btn.active { border-color: #5090cc; color: #5090cc; background: #0d1520; }
-    .compare-btn .compare-clear {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 14px; height: 14px; border-radius: 50%; font-size: 10px;
-      background: #5090cc33; color: #5090cc; margin-left: 2px;
-    }
-    .compare-btn .compare-clear:hover { background: #5090cc; color: #fff; }
-    .compare-dropdown {
-      position: absolute; top: calc(100% + 6px); left: 0;
-      background: #1a1a1a; border: 1px solid #3a3a3a;
-      border-radius: 8px; padding: 6px; min-width: 190px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.6); z-index: 300;
-      opacity: 0; transform: translateY(-6px);
-      pointer-events: none;
-      transition: opacity 0.15s, transform 0.15s;
-    }
-    .compare-dropdown.open { opacity: 1; transform: translateY(0); pointer-events: all; }
-
     /* ─── Career view ─── */
     .career-header {
       display: flex; align-items: center; gap: 16px;
@@ -687,12 +657,6 @@
       <span id="chart-subtitle">Cumulative championship points per race</span>
     </div>
     <div class="chart-controls">
-      <div class="compare-selector" id="compare-selector">
-        <button class="compare-btn" id="compare-btn" onclick="toggleCompareDropdown()">
-          <span id="compare-btn-label">＋ Compare</span>
-        </button>
-        <div class="compare-dropdown" id="compare-dropdown"></div>
-      </div>
       <div class="mode-toggle" id="mode-toggle">
         <button class="mode-btn active" id="mode-btn-points"   onclick="setChartMode('points')">Points</button>
         <button class="mode-btn"        id="mode-btn-position" onclick="setChartMode('position')">Position</button>
@@ -857,11 +821,7 @@ let state = {
   h2hPick:      [],
   fallbackIndex: 0,
   dropdownOpen: false,
-  chartMode:        'points',   // 'points' | 'position'
-  compareSeason:    null,
-  compareDriverData:[],
-  compareRaceLabels:[],
-  compareDropOpen:  false,
+  chartMode:    'points',   // 'points' | 'position'
 };
 
 /* ═══════════════════════════════════════════════
@@ -967,11 +927,9 @@ async function selectYear(year) {
   document.getElementById('tab-drivers').classList.add('active');
   document.getElementById('tab-ctors').classList.remove('active');
   document.getElementById('mode-toggle').style.display = '';
-  document.getElementById('compare-selector').style.display = '';
   document.getElementById('mode-btn-points').classList.add('active');
   document.getElementById('mode-btn-position').classList.remove('active');
   document.getElementById('chart-subtitle').textContent = 'Cumulative championship points per race';
-  clearCompare();
   document.getElementById('filter-chips').querySelector('[data-n="10"]').style.display = '';
   setFilter(5, false);
   await loadSeason(year);
@@ -1159,10 +1117,6 @@ function buildDatasets(items, filter, hidden) {
   const count = (filter === 0 || filter === 'h2h') ? items.length : Math.min(filter, items.length);
   const seenTeams = {};
   const usePosition = state.chartMode === 'position';
-  const hasCompare  = state.tab === 'drivers' && state.compareSeason && state.compareDriverData.length > 0;
-  const maxLen      = hasCompare
-    ? Math.max(state.raceLabels.length, state.compareRaceLabels.length)
-    : 0;
 
   const datasets = items.slice(0, count).map((item, i) => {
     const color = item.constructorId
@@ -1201,64 +1155,13 @@ function buildDatasets(items, filter, hidden) {
     };
   });
 
-  // Comparison season datasets (drivers tab only, points mode only)
-  if (hasCompare && !usePosition) {
-    const yr = `'${String(state.compareSeason).slice(-2)}`;
-    const seenTeams2 = {};
-    state.compareDriverData.slice(0, count).forEach(item => {
-      const color    = teamColor(item.constructorId || item.id);
-      const id       = 'cmp_' + item.id;
-      const isHidden = hidden.has(id);
-
-      let borderDash = [];
-      if (item.constructorId) {
-        if (seenTeams2[item.constructorId]) borderDash = [6, 3];
-        else seenTeams2[item.constructorId] = true;
-      }
-
-      // Pad to maxLen so x-axis aligns
-      const raw  = item.cumPoints;
-      const data = Array.from({ length: maxLen }, (_, i) => raw[i] ?? null);
-
-      datasets.push({
-        label:           `${item.abbr} ${yr}`,
-        data,
-        borderColor:     color + 'aa',
-        backgroundColor: color + '10',
-        borderWidth:     1.5,
-        borderDash,
-        pointRadius:     3,
-        pointHoverRadius:6,
-        tension:         0.25,
-        fill:            false,
-        hidden:          isHidden,
-        _itemRef:        { ...item, id },
-        _dashed:         borderDash.length > 0,
-        _compare:        true,
-      });
-    });
-
-    // Also pad primary datasets to maxLen
-    datasets.forEach(ds => {
-      if (!ds._compare && ds.data.length < maxLen) {
-        ds.data = [...ds.data, ...Array(maxLen - ds.data.length).fill(null)];
-      }
-    });
-  }
-
   return datasets;
 }
 
 function renderChart() {
   const items  = state.tab === 'drivers' ? state.driverData : state.ctorData;
   const datasets = buildDatasets(items, state.filter, state.hiddenSeries);
-  const hasCompare = state.tab === 'drivers' && state.compareSeason && state.compareDriverData.length > 0;
-  const maxLen     = hasCompare
-    ? Math.max(state.raceLabels.length, state.compareRaceLabels.length)
-    : state.raceLabels.length;
-  const labels = hasCompare
-    ? Array.from({ length: maxLen }, (_, i) => `R${i + 1}`)
-    : state.raceLabels;
+  const labels   = state.raceLabels;
 
   const canvas = document.getElementById('main-chart');
   const ctx    = canvas.getContext('2d');
@@ -1294,18 +1197,7 @@ function renderChart() {
           bodyColor:   cc.tooltip.body,
           padding: 12,
           callbacks: {
-            title: its => {
-              if (hasCompare) {
-                const i  = its[0].dataIndex;
-                const r1 = state.raceLabels[i];
-                const r2 = state.compareRaceLabels[i];
-                const parts = [`Round ${i + 1}`];
-                if (r1) parts.push(`${state.season}: ${r1}`);
-                if (r2) parts.push(`${state.compareSeason}: ${r2}`);
-                return parts;
-              }
-              return state.chartMode === 'position' ? its[0].label : `After ${its[0].label}`;
-            },
+            title: its => state.chartMode === 'position' ? its[0].label : `After ${its[0].label}`,
             label: item => {
               if (item.raw == null) return null;
               if (state.chartMode === 'position') {
@@ -1451,6 +1343,10 @@ function renderTable() {
       tr.className = 'clickable';
       tr.title = `View ${item.name}'s career`;
       tr.addEventListener('click', () => showDriverCareer(item.id, item.name));
+    } else {
+      tr.className = 'clickable';
+      tr.title = `View ${item.name}'s history`;
+      tr.addEventListener('click', () => showConstructorCareer(item.id, item.name));
     }
 
     if (isDrivers) {
@@ -1603,20 +1499,16 @@ function switchTab(tab) {
   document.getElementById('chart-title').firstChild.textContent =
     tab === 'drivers' ? 'Points Progression — Drivers ' : 'Points Progression — Constructors ';
 
-  // Mode toggle + compare only relevant for drivers
-  const modeToggle    = document.getElementById('mode-toggle');
-  const compareSelEl  = document.getElementById('compare-selector');
+  // Mode toggle only relevant for drivers
+  const modeToggle = document.getElementById('mode-toggle');
   if (tab === 'constructors') {
-    modeToggle.style.display   = 'none';
-    compareSelEl.style.display = 'none';
+    modeToggle.style.display = 'none';
     if (state.chartMode !== 'points') {
       state.chartMode = 'points';
       document.getElementById('chart-subtitle').textContent = 'Cumulative championship points per race';
     }
-    clearCompare();
   } else {
-    modeToggle.style.display   = '';
-    compareSelEl.style.display = '';
+    modeToggle.style.display = '';
   }
 
   // Constructors: hide "Top 10" chip (only 10 teams total)
@@ -1655,98 +1547,7 @@ function setFilter(n, redraw = true) {
 }
 
 /* ═══════════════════════════════════════════════
-   Season Comparison
-═══════════════════════════════════════════════ */
-function buildCompareDropdown() {
-  const el = document.getElementById('compare-dropdown');
-  el.innerHTML = '';
-  let html = '<div class="dropdown-historical" style="max-height:240px">';
-  let lastDecade = null;
-  for (let y = CURRENT_YEAR - (state.season === CURRENT_YEAR ? 1 : 0); y >= FIRST_YEAR; y--) {
-    if (y === state.season) continue;
-    const decade = Math.floor(y / 10) * 10;
-    if (decade !== lastDecade) {
-      html += `<div class="dropdown-label">${decade}s</div>`;
-      lastDecade = decade;
-    }
-    const selected = state.compareSeason === y;
-    html += `<div class="season-option${selected ? ' selected' : ''}" onclick="selectCompareYear(${y})">
-      <span class="opt-year">${y}</span>
-      <span style="display:flex;align-items:center;gap:8px">
-        <span class="opt-check">✓</span>
-      </span>
-    </div>`;
-  }
-  html += '</div>';
-  el.innerHTML = html;
-  requestAnimationFrame(() => {
-    const sel = el.querySelector('.season-option.selected');
-    if (sel) sel.scrollIntoView({ block: 'nearest' });
-  });
-}
-
-function toggleCompareDropdown() {
-  state.compareDropOpen = !state.compareDropOpen;
-  if (state.compareDropOpen) buildCompareDropdown();
-  document.getElementById('compare-dropdown').classList.toggle('open', state.compareDropOpen);
-}
-
-function closeCompareDropdown() {
-  state.compareDropOpen = false;
-  document.getElementById('compare-dropdown').classList.remove('open');
-}
-
-async function selectCompareYear(year) {
-  closeCompareDropdown();
-  if (year === state.compareSeason) return;
-  state.compareSeason = year;
-  updateCompareBtn();
-  setChartLoading('main-chart-loader', true);
-  try {
-    const races = await fetchAllRaces(`${year}/results`);
-    const { drivers, labels } = processRaces(races);
-    state.compareDriverData = drivers;
-    state.compareRaceLabels = labels;
-  } catch(e) {
-    state.compareSeason = null;
-    state.compareDriverData = [];
-    state.compareRaceLabels = [];
-  }
-  setChartLoading('main-chart-loader', false);
-  updateCompareBtn();
-  renderChart();
-}
-
-function clearCompare(e) {
-  if (e) e.stopPropagation();
-  state.compareSeason    = null;
-  state.compareDriverData = [];
-  state.compareRaceLabels = [];
-  updateCompareBtn();
-  renderChart();
-}
-
-function updateCompareBtn() {
-  const btn   = document.getElementById('compare-btn');
-  const label = document.getElementById('compare-btn-label');
-  if (state.compareSeason) {
-    btn.classList.add('active');
-    label.innerHTML = `${state.compareSeason} <span class="compare-clear" onclick="clearCompare(event)" title="Clear comparison">✕</span>`;
-  } else {
-    btn.classList.remove('active');
-    label.textContent = '＋ Compare';
-  }
-}
-
-// Close compare dropdown on outside click
-document.addEventListener('click', e => {
-  if (state.compareDropOpen && !document.getElementById('compare-selector')?.contains(e.target)) {
-    closeCompareDropdown();
-  }
-});
-
-/* ═══════════════════════════════════════════════
-   Driver Career Arc
+   Career Arc (drivers + constructors)
 ═══════════════════════════════════════════════ */
 let careerChart = null;
 
@@ -1923,6 +1724,149 @@ function hideDriverCareer() {
   if (careerChart) { careerChart.destroy(); careerChart = null; }
   document.getElementById('career-view').style.display = 'none';
   document.getElementById('season-view').style.display = '';
+}
+
+async function fetchConstructorCareer(constructorId) {
+  const seasonsData = await apiFetch(`constructors/${constructorId}/seasons/?limit=200&offset=0`);
+  const years = seasonsData.MRData.SeasonTable.Seasons.map(s => s.season);
+  const results = await Promise.all(
+    years.map(y => apiFetch(`${y}/constructors/${constructorId}/constructorStandings/`).catch(() => null))
+  );
+  return results
+    .filter(r => r?.MRData?.StandingsTable?.StandingsLists?.length)
+    .map(r => r.MRData.StandingsTable.StandingsLists[0])
+    .filter(l => l.ConstructorStandings?.length)
+    .sort((a, b) => parseInt(a.season) - parseInt(b.season));
+}
+
+async function showConstructorCareer(constructorId, constructorName) {
+  document.getElementById('season-view').style.display = 'none';
+  document.getElementById('career-view').style.display = '';
+  document.getElementById('career-title').firstChild.textContent = `${constructorName} `;
+  document.getElementById('career-subtitle').textContent = '';
+  setChartLoading('career-chart-loader', true);
+
+  let seasons;
+  try {
+    seasons = await fetchConstructorCareer(constructorId);
+  } catch(e) {
+    setChartLoading('career-chart-loader', false);
+    document.getElementById('career-subtitle').textContent = 'Failed to load constructor data.';
+    return;
+  }
+  setChartLoading('career-chart-loader', false);
+
+  const years    = seasons.map(s => s.season);
+  const standing = seasons.map(s => parseInt(s.ConstructorStandings[0].position, 10));
+  const points   = seasons.map(s => parseFloat(s.ConstructorStandings[0].points));
+  const wins     = seasons.map(s => parseInt(s.ConstructorStandings[0].wins, 10));
+
+  const championships = seasons
+    .filter(s => s.ConstructorStandings[0].position === '1')
+    .map(s => s.season);
+
+  const totalWins = wins.reduce((a, b) => a + b, 0);
+  document.getElementById('career-subtitle').textContent =
+    `${years.length} season${years.length !== 1 ? 's' : ''} · ${totalWins} win${totalWins !== 1 ? 's' : ''}` +
+    (championships.length ? ` · ${championships.length}× Champion` : '');
+
+  if (careerChart) { careerChart.destroy(); careerChart = null; }
+
+  const scrollEl = document.getElementById('career-scroll');
+  const canvas   = document.getElementById('career-chart');
+  const minW     = Math.max(scrollEl.clientWidth, years.length * 56);
+  canvas.style.width  = minW + 'px';
+  canvas.style.height = '340px';
+  canvas.width  = minW;
+  canvas.height = 340;
+
+  const cc       = chartColors();
+  const color    = teamColor(constructorId);
+  const ptColors = standing.map((_, i) => championships.includes(years[i]) ? '#ffd700' : color);
+  const ptRadius = standing.map((_, i) => championships.includes(years[i]) ? 8 : 5);
+
+  careerChart = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: years,
+      datasets: [{
+        label: constructorName,
+        data:  standing,
+        borderColor:          color,
+        backgroundColor:      color + '18',
+        borderWidth:          2.5,
+        pointRadius:          ptRadius,
+        pointHoverRadius:     8,
+        pointBackgroundColor: ptColors,
+        pointBorderColor:     ptColors,
+        tension:              0.25,
+        fill:                 false,
+        spanGaps:             true,
+        clip:                 false,
+      }],
+    },
+    options: {
+      responsive: false,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      animation: { duration: 400 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: cc.tooltip.bg,
+          borderColor:     cc.tooltip.border,
+          borderWidth: 1,
+          titleColor:  cc.tooltip.title,
+          bodyColor:   cc.tooltip.body,
+          padding: 12,
+          callbacks: {
+            title: its => `${its[0].label}${championships.includes(its[0].label) ? '  🏆' : ''}`,
+            label: item => [
+              ` Championship: P${item.raw}`,
+              ` Points: ${points[item.dataIndex]}`,
+              ` Wins: ${wins[item.dataIndex]}`,
+            ],
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid:  { color: cc.grid, drawBorder: false },
+          ticks: { color: cc.ticks, font: { size: 11 }, maxRotation: 0 },
+        },
+        y: {
+          grid:    { color: cc.grid, drawBorder: false },
+          ticks:   { color: cc.ticks, font: { size: 11 }, stepSize: 1, callback: v => `P${v}` },
+          title:   { display: true, text: 'Championship Position', color: cc.axisTitle, font: { size: 11 } },
+          reverse: true,
+          min:     1,
+          max:     Math.max(...standing) + 1,
+          clip:    false,
+        },
+      },
+    },
+  });
+
+  document.getElementById('career-table-head').innerHTML = `<tr>
+    <th style="width:60px">Year</th>
+    <th style="text-align:right">Pos</th>
+    <th style="text-align:right">Points</th>
+    <th style="text-align:right">Wins</th>
+  </tr>`;
+
+  const tbody = document.getElementById('career-table-body');
+  tbody.innerHTML = '';
+  seasons.forEach((s, i) => {
+    const sd = s.ConstructorStandings[0];
+    const isChamp = championships.includes(s.season);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="td-pos${isChamp ? ' p1' : ''}">${s.season}${isChamp ? ' 🏆' : ''}</td>
+      <td class="td-pts" style="text-align:right">P${sd.position}</td>
+      <td class="td-pts" style="text-align:right">${sd.points}</td>
+      <td class="td-wins" style="text-align:right">${sd.wins}</td>`;
+    tbody.appendChild(tr);
+  });
 }
 
 /* ═══════════════════════════════════════════════
