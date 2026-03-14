@@ -851,6 +851,7 @@ let state = {
   fallbackIndex: 0,
   dropdownOpen: false,
   chartMode:    'points',   // 'points' | 'position'
+  careerDriverId: null,
 };
 
 /* ═══════════════════════════════════════════════
@@ -1029,10 +1030,14 @@ function daysUntil(dateStr) {
 /* ═══════════════════════════════════════════════
    API
 ═══════════════════════════════════════════════ */
-async function apiFetch(path) {
+async function apiFetch(path, _attempt = 0) {
   const res = await fetch(`${API}/${path}`, {
     headers: { 'Accept': 'application/json' }
   });
+  if (res.status === 429 && _attempt < 4) {
+    await new Promise(r => setTimeout(r, (2 ** _attempt) * 1000));
+    return apiFetch(path, _attempt + 1);
+  }
   if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
   return res.json();
 }
@@ -1598,6 +1603,7 @@ async function fetchDriverCareer(driverId) {
 }
 
 async function showDriverCareer(driverId, driverName) {
+  state.careerDriverId = driverId;
   // Show loading indicator on the panel
   document.getElementById('season-view').style.display = 'none';
   const careerEl = document.getElementById('career-view');
@@ -1777,16 +1783,26 @@ async function showDriverCareer(driverId, driverName) {
 
 async function goToSeasonYear(year, tab) {
   const y = parseInt(year, 10);
+  const driverId = state.careerDriverId;
   if (y === state.season) {
     hideDriverCareer();
   } else {
     await selectYear(y);
   }
   if (tab === 'constructors') switchTab('constructors');
+  if (driverId && tab === 'drivers') {
+    const items = state.driverData;
+    if (items.some(item => item.id === driverId)) {
+      setFilter(0, false);
+      items.forEach(item => { if (item.id !== driverId) state.hiddenSeries.add(item.id); });
+      renderChart();
+    }
+  }
 }
 
 function hideDriverCareer() {
   if (careerChart) { careerChart.destroy(); careerChart = null; }
+  state.careerDriverId = null;
   document.getElementById('career-view').style.display = 'none';
   document.getElementById('season-view').style.display = '';
 }
