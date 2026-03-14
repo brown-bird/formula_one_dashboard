@@ -220,6 +220,25 @@
       display: block; font-size: 11px;
       font-weight: 400; color: var(--muted); margin-top: 2px;
     }
+    .chart-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .mode-toggle {
+      display: flex;
+      border: 1px solid var(--border2);
+      border-radius: 20px;
+      overflow: hidden;
+    }
+    .mode-btn {
+      padding: 5px 14px;
+      font-size: 12px; font-weight: 600;
+      cursor: pointer;
+      background: var(--surface);
+      color: var(--muted);
+      border: none;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .mode-btn:hover { color: var(--text2); }
+    .mode-btn.active { background: var(--accent); color: #fff; }
     .filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
     .chip {
       padding: 5px 16px;
@@ -602,11 +621,17 @@
       Points Progression — Drivers
       <span id="chart-subtitle">Cumulative championship points per race</span>
     </div>
-    <div class="filter-chips" id="filter-chips">
-      <div class="chip"        data-n="h2h" onclick="setFilter('h2h')">H2H</div>
-      <div class="chip active" data-n="5"   onclick="setFilter(5)">Top 5</div>
-      <div class="chip"        data-n="10"  onclick="setFilter(10)">Top 10</div>
-      <div class="chip"        data-n="0"   onclick="setFilter(0)">All</div>
+    <div class="chart-controls">
+      <div class="mode-toggle" id="mode-toggle">
+        <button class="mode-btn active" id="mode-btn-points"   onclick="setChartMode('points')">Points</button>
+        <button class="mode-btn"        id="mode-btn-position" onclick="setChartMode('position')">Position</button>
+      </div>
+      <div class="filter-chips" id="filter-chips">
+        <div class="chip"        data-n="h2h" onclick="setFilter('h2h')">H2H</div>
+        <div class="chip active" data-n="5"   onclick="setFilter(5)">Top 5</div>
+        <div class="chip"        data-n="10"  onclick="setFilter(10)">Top 10</div>
+        <div class="chip"        data-n="0"   onclick="setFilter(0)">All</div>
+      </div>
     </div>
   </div>
 
@@ -733,6 +758,7 @@ let state = {
   h2hPick:      [],
   fallbackIndex: 0,
   dropdownOpen: false,
+  chartMode:    'points',   // 'points' | 'position'
 };
 
 /* ═══════════════════════════════════════════════
@@ -830,11 +856,16 @@ async function selectYear(year) {
   state.season = year;
   state.hiddenSeries.clear();
   state.h2hPick = [];
-  state.tab    = 'drivers';
-  state.filter = 5;
+  state.tab       = 'drivers';
+  state.filter    = 5;
+  state.chartMode = 'points';
   // Reset tab UI
   document.getElementById('tab-drivers').classList.add('active');
   document.getElementById('tab-ctors').classList.remove('active');
+  document.getElementById('mode-toggle').style.display = '';
+  document.getElementById('mode-btn-points').classList.add('active');
+  document.getElementById('mode-btn-position').classList.remove('active');
+  document.getElementById('chart-subtitle').textContent = 'Cumulative championship points per race';
   document.getElementById('filter-chips').querySelector('[data-n="10"]').style.display = '';
   setFilter(5, false);
   await loadSeason(year);
@@ -969,10 +1000,11 @@ function processRaces(races) {
           abbr: result.Driver.code || result.Driver.familyName.slice(0,3).toUpperCase(),
           team: result.Constructor.name,
           constructorId: cId,
-          ptsMap: {}, wins: 0, total: 0,
+          ptsMap: {}, posMap: {}, wins: 0, total: 0,
         };
       }
       driverMap[dId].ptsMap[race.round] = pts;
+      driverMap[dId].posMap[race.round] = parseInt(result.position, 10) || null;
       driverMap[dId].total += pts;
       driverMap[dId].wins  += wins;
 
@@ -999,7 +1031,10 @@ function processRaces(races) {
           cum += (item.ptsMap[rnd] || 0);
           return cum;
         });
-        return { ...item, cumPoints };
+        const positions = item.posMap
+          ? roundNums.map(rnd => item.posMap[rnd] ?? null)
+          : null;
+        return { ...item, cumPoints, positions };
       })
       .sort((a, b) => b.total - a.total);
   }
@@ -1017,6 +1052,7 @@ function processRaces(races) {
 function buildDatasets(items, filter, hidden) {
   const count = (filter === 0 || filter === 'h2h') ? items.length : Math.min(filter, items.length);
   const seenTeams = {};
+  const usePosition = state.chartMode === 'position';
   return items.slice(0, count).map((item, i) => {
     const color = item.constructorId
       ? teamColor(item.constructorId)
@@ -1033,17 +1069,20 @@ function buildDatasets(items, filter, hidden) {
       }
     }
 
+    const data = (usePosition && item.positions) ? item.positions : item.cumPoints;
+
     return {
       label:           item.name || item.abbr,
-      data:            item.cumPoints,
+      data,
       borderColor:     color,
       backgroundColor: color + '18',
       borderWidth:     2.5,
       borderDash,
-      pointRadius:     item.cumPoints.length <= 3 ? 6 : 4,
+      pointRadius:     data.length <= 3 ? 6 : 4,
       pointHoverRadius:8,
       tension:         0.25,
       fill:            false,
+      spanGaps:        usePosition,
       hidden:          isHidden,
       _itemRef:        item,
       _dashed:         borderDash.length > 0,
@@ -1090,8 +1129,13 @@ function renderChart() {
           bodyColor:   cc.tooltip.body,
           padding: 12,
           callbacks: {
-            title: items => `After ${items[0].label}`,
-            label: item => ` ${item.dataset.label}: ${item.raw} pts`,
+            title: its => its[0].label,
+            label: item => {
+              if (state.chartMode === 'position') {
+                return item.raw == null ? ` ${item.dataset.label}: —` : ` ${item.dataset.label}: P${item.raw}`;
+              }
+              return ` ${item.dataset.label}: ${item.raw} pts`;
+            },
           }
         }
       },
@@ -1100,7 +1144,14 @@ function renderChart() {
           grid: { color: cc.grid, drawBorder: false },
           ticks: { color: cc.ticks, font: { size: 11 }, maxRotation: 0, autoSkip: false },
         },
-        y: {
+        y: state.chartMode === 'position' ? {
+          grid:    { color: cc.grid, drawBorder: false },
+          ticks:   { color: cc.ticks, font: { size: 11 }, stepSize: 1, callback: v => `P${v}` },
+          title:   { display: true, text: 'Finishing Position', color: cc.axisTitle, font: { size: 11 } },
+          reverse: true,
+          min:     1,
+          max:     20,
+        } : {
           grid: { color: cc.grid, drawBorder: false },
           ticks: { color: cc.ticks, font: { size: 11 } },
           title: { display: true, text: 'Championship Points', color: cc.axisTitle, font: { size: 11 } },
@@ -1346,6 +1397,15 @@ function renderCalendar(schedule, completedRounds) {
 /* ═══════════════════════════════════════════════
    Tab / filter controls
 ═══════════════════════════════════════════════ */
+function setChartMode(mode) {
+  state.chartMode = mode;
+  document.getElementById('mode-btn-points').classList.toggle('active', mode === 'points');
+  document.getElementById('mode-btn-position').classList.toggle('active', mode === 'position');
+  document.getElementById('chart-subtitle').textContent =
+    mode === 'position' ? 'Finishing position per race' : 'Cumulative championship points per race';
+  renderChart();
+}
+
 function switchTab(tab) {
   state.tab = tab;
   state.hiddenSeries.clear();
@@ -1354,6 +1414,18 @@ function switchTab(tab) {
   document.getElementById('tab-ctors').classList.toggle('active', tab === 'constructors');
   document.getElementById('chart-title').firstChild.textContent =
     tab === 'drivers' ? 'Points Progression — Drivers ' : 'Points Progression — Constructors ';
+
+  // Mode toggle only relevant for drivers
+  const modeToggle = document.getElementById('mode-toggle');
+  if (tab === 'constructors') {
+    modeToggle.style.display = 'none';
+    if (state.chartMode !== 'points') {
+      state.chartMode = 'points';
+      document.getElementById('chart-subtitle').textContent = 'Cumulative championship points per race';
+    }
+  } else {
+    modeToggle.style.display = '';
+  }
 
   // Constructors: hide "Top 10" chip (only 10 teams total)
   const chips = document.getElementById('filter-chips');
