@@ -1768,8 +1768,21 @@ async function showDriverCareer(driverId, driverName) {
       <td class="td-pts" style="text-align:right">P${sd.position}</td>
       <td class="td-pts" style="text-align:right">${sd.points}</td>
       <td class="td-wins" style="text-align:right">${sd.wins}</td>`;
+    tr.className = 'clickable';
+    tr.title = `View ${s.season} season`;
+    tr.addEventListener('click', () => goToSeasonYear(s.season, 'drivers'));
     tbody.appendChild(tr);
   });
+}
+
+async function goToSeasonYear(year, tab) {
+  const y = parseInt(year, 10);
+  if (y === state.season) {
+    hideDriverCareer();
+  } else {
+    await selectYear(y);
+  }
+  if (tab === 'constructors') switchTab('constructors');
 }
 
 function hideDriverCareer() {
@@ -1958,6 +1971,9 @@ async function showConstructorCareer(constructorId, constructorName) {
       <td class="td-pts" style="text-align:right">P${sd.position}</td>
       <td class="td-pts" style="text-align:right">${sd.points}</td>
       <td class="td-wins" style="text-align:right">${sd.wins}</td>`;
+    tr.className = 'clickable';
+    tr.title = `View ${s.season} season`;
+    tr.addEventListener('click', () => goToSeasonYear(s.season, 'constructors'));
     tbody.appendChild(tr);
   });
 }
