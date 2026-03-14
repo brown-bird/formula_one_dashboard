@@ -269,7 +269,7 @@
     .legend-none { color: var(--text2); opacity: 0.6; font-size: 11px; letter-spacing: 0.03em; }
     .legend-none:hover { opacity: 1; }
     .legend-color {
-      width: 24px; height: 3px; border-radius: 2px; flex-shrink: 0;
+      width: 24px; height: 4px; flex-shrink: 0; overflow: visible;
     }
 
     /* ─── Divider ─── */
@@ -1016,23 +1016,37 @@ function processRaces(races) {
 ═══════════════════════════════════════════════ */
 function buildDatasets(items, filter, hidden) {
   const count = (filter === 0 || filter === 'h2h') ? items.length : Math.min(filter, items.length);
+  const seenTeams = {};
   return items.slice(0, count).map((item, i) => {
     const color = item.constructorId
       ? teamColor(item.constructorId)
       : teamColor(item.id);
     const isHidden = hidden.has(item.id || item.name);
+
+    // Second driver on the same team gets a dashed line
+    let borderDash = [];
+    if (item.constructorId) {
+      if (seenTeams[item.constructorId]) {
+        borderDash = [6, 3];
+      } else {
+        seenTeams[item.constructorId] = true;
+      }
+    }
+
     return {
       label:           item.name || item.abbr,
       data:            item.cumPoints,
       borderColor:     color,
       backgroundColor: color + '18',
       borderWidth:     2.5,
+      borderDash,
       pointRadius:     item.cumPoints.length <= 3 ? 6 : 4,
       pointHoverRadius:8,
       tension:         0.25,
       fill:            false,
       hidden:          isHidden,
       _itemRef:        item,
+      _dashed:         borderDash.length > 0,
     };
   });
 }
@@ -1126,7 +1140,10 @@ function renderLegend(datasets, items) {
     const hidden = state.hiddenSeries.has(id);
     const div    = document.createElement('div');
     div.className = 'legend-item' + (hidden ? ' muted' : '');
-    div.innerHTML = `<div class="legend-color" style="background:${ds.borderColor}"></div>${ds.label}`;
+    const lineIndicator = ds._dashed
+      ? `<svg class="legend-color" viewBox="0 0 24 4" xmlns="http://www.w3.org/2000/svg"><line x1="0" y1="2" x2="24" y2="2" stroke="${ds.borderColor}" stroke-width="2.5" stroke-dasharray="6,3"/></svg>`
+      : `<svg class="legend-color" viewBox="0 0 24 4" xmlns="http://www.w3.org/2000/svg"><line x1="0" y1="2" x2="24" y2="2" stroke="${ds.borderColor}" stroke-width="2.5"/></svg>`;
+    div.innerHTML = `${lineIndicator}${ds.label}`;
     div.title     = state.filter === 'h2h'
       ? (hidden ? `Select ${ds.label}` : `Deselect ${ds.label}`)
       : `Click to show/hide ${ds.label}`;
