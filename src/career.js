@@ -33,6 +33,7 @@ export async function showDriverCareer(driverId, driverName) {
   document.getElementById('career-title').innerHTML = `
     <div class="ctor-picker" id="ctor-picker">
       <button class="ctor-picker-btn" id="ctor-picker-btn" onclick="toggleCtorPicker()">
+        <span id="ctor-picker-stripe" class="team-stripe"></span>
         <span id="ctor-picker-label"></span>
         <span class="ctor-picker-chevron">▾</span>
       </button>
@@ -52,6 +53,8 @@ export async function showDriverCareer(driverId, driverName) {
     });
     list.appendChild(opt);
   });
+  const activeDriver = state.driverData.find(d => d.id === driverId);
+  document.getElementById('ctor-picker-stripe').style.background = activeDriver ? teamColor(activeDriver.constructorId) : 'transparent';
   document.getElementById('ctor-picker-label').textContent = driverName;
 
   setChartLoading('career-chart-loader', true);
@@ -284,6 +287,7 @@ export async function showConstructorCareer(constructorId, constructorName) {
   document.getElementById('career-title').innerHTML = `
     <div class="ctor-picker" id="ctor-picker">
       <button class="ctor-picker-btn" id="ctor-picker-btn" onclick="toggleCtorPicker()">
+        <span id="ctor-picker-stripe" class="team-stripe"></span>
         <span id="ctor-picker-label"></span>
         <span class="ctor-picker-chevron">▾</span>
       </button>
@@ -303,6 +307,7 @@ export async function showConstructorCareer(constructorId, constructorName) {
     });
     list.appendChild(opt);
   });
+  document.getElementById('ctor-picker-stripe').style.background = teamColor(constructorId);
   document.getElementById('ctor-picker-label').textContent = constructorName;
 
   setChartLoading('career-chart-loader', true);
