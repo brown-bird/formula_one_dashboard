@@ -17,4 +17,8 @@ export const state = {
   chartMode:     'points',   // 'points' | 'position'
   careerDriverId: null,
   careerConstructorId: null,
+  careerYears:   [],
+  compareMode:   false,
+  comparePick:   [null, null],
+  compareChart:  null,
 };

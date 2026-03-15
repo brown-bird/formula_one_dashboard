@@ -4,27 +4,18 @@ Focus: data visualisation and storytelling over raw stats.
 
 ---
 
-## In Progress / Planned
-
-### Driver Career Arc
-- Status: complete
-- Bugs:
-    - Some years are not visible in the chart or table (Is this a bug or gap in
-      data?)
-
-### Season Comparison
-Overlay two seasons' cumulative points progressions on the same chart.
-Natural questions: "Is 2024 Verstappen's dominance comparable to 2013?"
-or "How did Hamilton's 2019 vs 2020 seasons differ round-by-round?"
-
-(scope this to the season-by-season view)
-
-### Refactor JS and CSS out into separate directories and files 
-Clean up and organize the code. Everything is currently in a single index.html
-
----
-
 ## Backlog
+
+### Driver Season Comparison
+In the driver career arc view, add a compare mode that lets the user overlay two of
+that driver's seasons on the same chart. Scoped to the active driver only — e.g. while
+viewing Lando Norris, compare his 2023 vs 2024.
+
+- A "Compare" toggle enters compare mode
+- Two year selectors appear (populated from the driver's career years)
+- A "Compare" button triggers the data fetch — avoids expensive loads while the user
+  is still choosing years
+- Chart overlays the two seasons' cumulative points round-by-round
 
 ### Teammate Battles, All Time
 For a selected driver, show their head-to-head record against every teammate they've

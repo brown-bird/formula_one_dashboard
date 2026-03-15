@@ -165,24 +165,41 @@
 <!-- Career view (shown when a driver is selected) -->
 <div id="career-view" style="display:none">
   <div class="career-header">
-<div class="career-title" id="career-title">
+    <div class="career-title" id="career-title">
       Driver Career
       <span id="career-subtitle"></span>
     </div>
+    <div id="career-compare-controls" style="display:none">
+      <button class="mode-btn" id="career-compare-toggle" onclick="toggleCompareMode()">Compare seasons</button>
+      <div id="career-compare-bar" style="display:none">
+        <select id="compare-year-a" class="compare-select"></select>
+        <span class="compare-vs">vs</span>
+        <select id="compare-year-b" class="compare-select"></select>
+        <button class="mode-btn active" id="compare-go-btn" onclick="runSeasonCompare()">Compare</button>
+        <span id="compare-spinner" class="spinner compare-spinner" style="display:none"></span>
+      </div>
+    </div>
   </div>
-  <div class="chart-wrap">
+  <div class="chart-wrap" id="career-arc-wrap">
     <div class="career-scroll" id="career-scroll">
       <div class="chart-loader" id="career-chart-loader"><div class="spinner"></div></div>
       <canvas id="career-chart"></canvas>
     </div>
   </div>
-  <div class="divider"></div>
-  <div class="standings-title">Season by Season</div>
-  <div class="table-wrap">
-    <table>
-      <thead id="career-table-head"></thead>
-      <tbody id="career-table-body"></tbody>
-    </table>
+  <div class="chart-wrap" id="compare-chart-wrap" style="display:none">
+    <div class="career-scroll" id="compare-scroll">
+      <canvas id="compare-chart"></canvas>
+    </div>
+  </div>
+  <div id="career-table-section">
+    <div class="divider"></div>
+    <div class="standings-title">Season by Season</div>
+    <div class="table-wrap">
+      <table>
+        <thead id="career-table-head"></thead>
+        <tbody id="career-table-body"></tbody>
+      </table>
+    </div>
   </div>
 </div><!-- /career-view -->
 

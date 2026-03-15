@@ -1,5 +1,6 @@
 import { state } from './state.js';
-import { apiFetch } from './api.js';
+import { apiFetch, fetchAllRaces } from './api.js';
+import { processRaces } from './data.js';
 import { teamColor } from './helpers.js';
 import { chartColors } from './theme.js';
 import { setFilter } from './ui.js';
@@ -25,7 +26,9 @@ export async function fetchDriverCareer(driverId) {
 }
 
 export async function showDriverCareer(driverId, driverName) {
+  if (state.compareMode) exitCompareMode();
   state.careerDriverId = driverId;
+  document.getElementById('career-compare-controls').style.display = 'flex';
   document.getElementById('season-view').style.display = 'none';
   const careerEl = document.getElementById('career-view');
   careerEl.style.display = '';
@@ -70,6 +73,7 @@ export async function showDriverCareer(driverId, driverName) {
   setChartLoading('career-chart-loader', false);
 
   const years    = seasons.map(s => s.season);
+  state.careerYears = years;
   const standing = seasons.map(s => parseInt(s.DriverStandings[0].position, 10));
   const points   = seasons.map(s => parseFloat(s.DriverStandings[0].points));
   const wins     = seasons.map(s => parseInt(s.DriverStandings[0].wins, 10));
@@ -237,9 +241,11 @@ export async function goToSeasonYear(year, tab) {
 }
 
 export function hideDriverCareer() {
+  if (state.compareMode) exitCompareMode();
   if (state.careerChart) { state.careerChart.destroy(); state.careerChart = null; }
   state.careerDriverId = null;
   state.careerConstructorId = null;
+  state.careerYears = [];
   document.getElementById('career-view').style.display = 'none';
   document.getElementById('season-view').style.display = '';
 }
@@ -281,6 +287,7 @@ export async function fetchConstructorCareer(constructorId) {
 
 export async function showConstructorCareer(constructorId, constructorName) {
   state.careerConstructorId = constructorId;
+  document.getElementById('career-compare-controls').style.display = 'none';
   document.getElementById('season-view').style.display = 'none';
   document.getElementById('career-view').style.display = '';
   // Build picker in the title slot
@@ -435,5 +442,155 @@ export async function showConstructorCareer(constructorId, constructorName) {
     tr.title = `View ${s.season} season`;
     tr.addEventListener('click', () => goToSeasonYear(s.season, 'constructors'));
     tbody.appendChild(tr);
+  });
+}
+
+// ─── Season comparison ───────────────────────────────────────────────────────
+
+// Pure function — builds the two datasets for the comparison chart.
+// Exported for unit testing.
+export function buildCompareDatasets(driverA, driverB, roundsA, roundsB, yearA, yearB) {
+  const maxRounds = Math.max(roundsA, roundsB);
+  const labels = Array.from({ length: maxRounds }, (_, i) => `R${i + 1}`);
+  const datasets = [
+    {
+      label: yearA,
+      data:            driverA ? driverA.cumPoints : [],
+      borderColor:     '#e10600',
+      backgroundColor: '#e1060018',
+      borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 7,
+      tension: 0.25, fill: false, spanGaps: true,
+    },
+    {
+      label: yearB,
+      data:            driverB ? driverB.cumPoints : [],
+      borderColor:     '#27F4D2',
+      backgroundColor: '#27F4D218',
+      borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 7,
+      tension: 0.25, fill: false, spanGaps: true,
+    },
+  ];
+  return { labels, datasets };
+}
+
+export function enterCompareMode(years) {
+  state.compareMode = true;
+  const selectA = document.getElementById('compare-year-a');
+  const selectB = document.getElementById('compare-year-b');
+  const opts = years.map(y => `<option value="${y}">${y}</option>`).join('');
+  selectA.innerHTML = opts;
+  selectB.innerHTML = opts;
+  selectA.value = years[0];
+  selectB.value = years[years.length - 1];
+  state.comparePick = [years[0], years[years.length - 1]];
+  selectA.onchange = e => { state.comparePick[0] = e.target.value; };
+  selectB.onchange = e => { state.comparePick[1] = e.target.value; };
+  document.getElementById('career-compare-bar').style.display = 'flex';
+  document.getElementById('career-arc-wrap').style.display = 'none';
+  document.getElementById('career-table-section').style.display = 'none';
+  document.getElementById('career-compare-toggle').classList.add('active');
+}
+
+export function exitCompareMode() {
+  state.compareMode = false;
+  state.comparePick = [null, null];
+  if (state.compareChart) { state.compareChart.destroy(); state.compareChart = null; }
+  document.getElementById('career-compare-bar').style.display = 'none';
+  document.getElementById('compare-chart-wrap').style.display = 'none';
+  document.getElementById('career-arc-wrap').style.display = '';
+  document.getElementById('career-table-section').style.display = '';
+  document.getElementById('career-compare-toggle').classList.remove('active');
+}
+
+export function toggleCompareMode() {
+  if (state.compareMode) {
+    exitCompareMode();
+  } else {
+    enterCompareMode(state.careerYears);
+  }
+}
+
+export async function runSeasonCompare() {
+  const [yearA, yearB] = state.comparePick;
+  if (!yearA || !yearB || yearA === yearB) return;
+  const driverId = state.careerDriverId;
+
+  const spinner = document.getElementById('compare-spinner');
+  const goBtn   = document.getElementById('compare-go-btn');
+  spinner.style.display = 'inline-block';
+  goBtn.disabled = true;
+
+  let racesA, racesB;
+  try {
+    [racesA, racesB] = await Promise.all([
+      fetchAllRaces(`${yearA}/drivers/${driverId}/results`),
+      fetchAllRaces(`${yearB}/drivers/${driverId}/results`),
+    ]);
+  } catch (e) {
+    spinner.style.display = 'none';
+    goBtn.disabled = false;
+    return;
+  }
+
+  spinner.style.display = 'none';
+  goBtn.disabled = false;
+
+  const { drivers: driversA } = processRaces(racesA);
+  const { drivers: driversB } = processRaces(racesB);
+  const driverA = driversA.find(d => d.id === driverId) ?? null;
+  const driverB = driversB.find(d => d.id === driverId) ?? null;
+
+  const { labels, datasets } = buildCompareDatasets(driverA, driverB, racesA.length, racesB.length, yearA, yearB);
+
+  if (state.compareChart) { state.compareChart.destroy(); state.compareChart = null; }
+
+  const wrapEl   = document.getElementById('compare-chart-wrap');
+  const scrollEl = document.getElementById('compare-scroll');
+  const canvas   = document.getElementById('compare-chart');
+  wrapEl.style.display = '';
+  const minW = Math.max(scrollEl.clientWidth, labels.length * 52);
+  canvas.style.width  = minW + 'px';
+  canvas.style.height = '340px';
+  canvas.width  = minW;
+  canvas.height = 340;
+
+  const cc = chartColors();
+  state.compareChart = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: false,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      animation: { duration: 400 },
+      plugins: {
+        legend: { display: true, labels: { color: cc.ticks, font: { size: 12 } } },
+        tooltip: {
+          backgroundColor: cc.tooltip.bg,
+          borderColor:     cc.tooltip.border,
+          borderWidth: 1,
+          titleColor:  cc.tooltip.title,
+          bodyColor:   cc.tooltip.body,
+          padding: 12,
+          callbacks: {
+            title: its => its[0].label,
+            label: item => ` ${item.dataset.label}: ${item.raw ?? '—'} pts`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid:  { color: cc.grid, drawBorder: false },
+          ticks: { color: cc.ticks, font: { size: 11 }, maxRotation: 0 },
+          title: { display: true, text: 'Race Round', color: cc.axisTitle, font: { size: 11 } },
+        },
+        y: {
+          grid:        { color: cc.grid, drawBorder: false },
+          ticks:       { color: cc.ticks, font: { size: 11 } },
+          title:       { display: true, text: 'Cumulative Points', color: cc.axisTitle, font: { size: 11 } },
+          beginAtZero: true,
+        },
+      },
+    },
   });
 }

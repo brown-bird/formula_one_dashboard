@@ -9,7 +9,7 @@ import { setChartLoading, switchTab, setFilter, setChartMode } from './ui.js';
 import {
   buildDropdown, selectYear, toggleDropdown, updateSeasonChrome, closeDropdown,
 } from './season-selector.js';
-import { hideDriverCareer, toggleCtorPicker, closeCtorPicker } from './career.js';
+import { hideDriverCareer, toggleCtorPicker, closeCtorPicker, toggleCompareMode, runSeasonCompare } from './career.js';
 
 export async function loadSeason(year) {
   const overlay = document.getElementById('loading-overlay');
@@ -95,8 +95,10 @@ window.CURRENT_YEAR     = CURRENT_YEAR;
 window.switchTab        = switchTab;
 window.setChartMode     = setChartMode;
 window.setFilter        = setFilter;
-window.hideDriverCareer = hideDriverCareer;
-window.toggleCtorPicker = toggleCtorPicker;
+window.hideDriverCareer   = hideDriverCareer;
+window.toggleCtorPicker   = toggleCtorPicker;
+window.toggleCompareMode  = toggleCompareMode;
+window.runSeasonCompare   = runSeasonCompare;
 
 // Close dropdown on outside click
 document.addEventListener('click', e => {
