@@ -205,6 +205,7 @@ export async function showDriverCareer(driverId, driverName) {
 export async function goToSeasonYear(year, tab) {
   const y = parseInt(year, 10);
   const driverId = state.careerDriverId;
+  const constructorId = state.careerConstructorId; // capture before switchTab → hideDriverCareer clears it
   if (y === state.season) {
     hideDriverCareer();
   } else {
@@ -213,6 +214,14 @@ export async function goToSeasonYear(year, tab) {
   if (tab === 'constructors') {
     const { switchTab } = await import('./ui.js');
     switchTab('constructors');
+  }
+  if (constructorId && tab === 'constructors') {
+    const items = state.ctorData;
+    if (items.some(item => item.id === constructorId)) {
+      setFilter(0, false);
+      items.forEach(item => { if (item.id !== constructorId) state.hiddenSeries.add(item.id); });
+      renderChart();
+    }
   }
   if (driverId && tab === 'drivers') {
     const items = state.driverData;
@@ -227,6 +236,7 @@ export async function goToSeasonYear(year, tab) {
 export function hideDriverCareer() {
   if (state.careerChart) { state.careerChart.destroy(); state.careerChart = null; }
   state.careerDriverId = null;
+  state.careerConstructorId = null;
   document.getElementById('career-view').style.display = 'none';
   document.getElementById('season-view').style.display = '';
 }
@@ -247,9 +257,18 @@ export function closeCtorPicker() {
 export async function fetchConstructorCareer(constructorId) {
   const seasonsData = await apiFetch(`constructors/${constructorId}/seasons/?limit=200&offset=0`);
   const years = seasonsData.MRData.SeasonTable.Seasons.map(s => s.season);
-  const results = await Promise.all(
-    years.map(y => apiFetch(`${y}/constructors/${constructorId}/constructorStandings/`).catch(() => null))
-  );
+
+  // Batch requests to avoid rate limiting (teams like Ferrari have 75+ seasons)
+  const BATCH = 8;
+  const results = [];
+  for (let i = 0; i < years.length; i += BATCH) {
+    const batch = years.slice(i, i + BATCH);
+    const batchResults = await Promise.all(
+      batch.map(y => apiFetch(`${y}/constructors/${constructorId}/constructorStandings/`).catch(() => null))
+    );
+    results.push(...batchResults);
+  }
+
   return results
     .filter(r => r?.MRData?.StandingsTable?.StandingsLists?.length)
     .map(r => r.MRData.StandingsTable.StandingsLists[0])
@@ -258,6 +277,7 @@ export async function fetchConstructorCareer(constructorId) {
 }
 
 export async function showConstructorCareer(constructorId, constructorName) {
+  state.careerConstructorId = constructorId;
   document.getElementById('season-view').style.display = 'none';
   document.getElementById('career-view').style.display = '';
   // Build picker in the title slot

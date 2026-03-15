@@ -16,4 +16,5 @@ export const state = {
   dropdownOpen:  false,
   chartMode:     'points',   // 'points' | 'position'
   careerDriverId: null,
+  careerConstructorId: null,
 };
