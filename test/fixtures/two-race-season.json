@@ -1,0 +1,52 @@
+[
+  {
+    "round": "1",
+    "raceName": "Australian Grand Prix",
+    "date": "2026-03-15",
+    "Results": [
+      {
+        "position": "1",
+        "points": "25",
+        "Driver": { "driverId": "hamilton", "givenName": "Lewis", "familyName": "Hamilton", "code": "HAM" },
+        "Constructor": { "constructorId": "mercedes", "name": "Mercedes" }
+      },
+      {
+        "position": "2",
+        "points": "18",
+        "Driver": { "driverId": "russell", "givenName": "George", "familyName": "Russell", "code": "RUS" },
+        "Constructor": { "constructorId": "mercedes", "name": "Mercedes" }
+      },
+      {
+        "position": "3",
+        "points": "15",
+        "Driver": { "driverId": "leclerc", "givenName": "Charles", "familyName": "Leclerc", "code": "LEC" },
+        "Constructor": { "constructorId": "ferrari", "name": "Ferrari" }
+      }
+    ]
+  },
+  {
+    "round": "2",
+    "raceName": "Bahrain Grand Prix",
+    "date": "2026-03-29",
+    "Results": [
+      {
+        "position": "1",
+        "points": "25",
+        "Driver": { "driverId": "leclerc", "givenName": "Charles", "familyName": "Leclerc", "code": "LEC" },
+        "Constructor": { "constructorId": "ferrari", "name": "Ferrari" }
+      },
+      {
+        "position": "2",
+        "points": "18",
+        "Driver": { "driverId": "hamilton", "givenName": "Lewis", "familyName": "Hamilton", "code": "HAM" },
+        "Constructor": { "constructorId": "mercedes", "name": "Mercedes" }
+      },
+      {
+        "position": "3",
+        "points": "15",
+        "Driver": { "driverId": "russell", "givenName": "George", "familyName": "Russell", "code": "RUS" },
+        "Constructor": { "constructorId": "mercedes", "name": "Mercedes" }
+      }
+    ]
+  }
+]

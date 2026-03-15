@@ -1,0 +1,567 @@
+/* ─────────────────────────────────────
+   CSS variables — single source of truth
+   for a future light/dark toggle
+──────────────────────────────────────── */
+:root {
+  --bg:        #0f0f0f;
+  --surface:   #1a1a1a;
+  --surface2:  #202020;
+  --border:    #2a2a2a;
+  --border2:   #333;
+  --accent:    #e10600;
+  --accent-h:  #ff1a16;
+  --accent2:   #ff8700;
+  --text:      #f0f0f0;
+  --text2:     #b0b0b0;
+  --muted:     #666;
+  --chart-grid:#1e1e1e;
+  --tooltip-bg:#111;
+  --row-border:#1e1e1e;
+  --row-hover: #222222;
+  --done-bg:   #1f0a0a;
+  --next-bg:   #1f1200;
+}
+
+/* ── Light theme overrides ── */
+[data-theme="light"] {
+  --bg:        #f4f5f7;
+  --surface:   #ffffff;
+  --surface2:  #f0f2f5;
+  --border:    #e2e4e8;
+  --border2:   #d0d3da;
+  --text:      #1a1a2e;
+  --text2:     #4a5068;
+  --muted:     #9aa0b8;
+  --chart-grid:#eceef2;
+  --tooltip-bg:#ffffff;
+  --row-border:#eceef2;
+  --row-hover: #f0f2f5;
+  --done-bg:   #fff0ef;
+  --next-bg:   #fff8ec;
+}
+
+/* Smooth theme transitions */
+body, .panel, .stat, .stats-strip, .tab, .chip,
+.legend-item, .race-pill, .chart-wrap, .next-race-pill,
+.spark-bar, .divider, thead th, tbody td {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* ─── Reset & Base ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+a { color: inherit; text-decoration: none; }
+
+/* ─── Loading overlay ─── */
+#loading-overlay {
+  position: fixed; inset: 0; background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 16px; z-index: 1000;
+  transition: opacity 0.4s;
+}
+#loading-overlay.hidden { opacity: 0; pointer-events: none; }
+.spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 13px; color: var(--muted); letter-spacing: 0.06em; }
+
+/* ─── Error banner ─── */
+#error-banner {
+  display: none;
+  background: #2a0a0a;
+  border: 1px solid #5a1010;
+  color: #ff8080;
+  padding: 12px 24px;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ─── Header ─── */
+header {
+  background: #111;
+  border-bottom: 3px solid var(--accent);
+  padding: 0 32px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.logo {
+  display: flex; align-items: center; gap: 14px;
+}
+.logo-checks {
+  display: flex; gap: 3px; align-items: center;
+}
+.logo-checks span {
+  display: block; width: 9px; height: 28px;
+  background: #fff;
+}
+.logo-checks span:nth-child(even) { background: #222; }
+.logo h1 {
+  font-size: 20px; font-weight: 800;
+  letter-spacing: 0.04em; color: #fff;
+}
+.logo h1 em { color: var(--accent); font-style: normal; }
+.header-right {
+  display: flex; align-items: center; gap: 24px;
+}
+.next-race-pill {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 6px; padding: 6px 14px;
+  font-size: 12px; color: var(--text2);
+}
+.next-race-pill .label { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
+.next-race-pill strong { color: var(--text); font-size: 13px; }
+.next-race-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); }
+
+/* ─── Stats strip ─── */
+.stats-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.stat {
+  background: var(--surface);
+  padding: 16px 24px;
+  display: flex; align-items: center; gap: 16px;
+}
+.stat-icon { font-size: 22px; opacity: 0.8; }
+.stat-body {}
+.stat-label {
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted);
+  margin-bottom: 2px;
+}
+.stat-value {
+  font-size: 20px; font-weight: 800; color: var(--text);
+}
+.stat-value.accent { color: var(--accent); }
+.stat-value.orange { color: var(--accent2); }
+.stat-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+/* ─── Progress bar (season) ─── */
+.season-progress {
+  height: 3px;
+  background: var(--border);
+}
+.season-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  transition: width 0.6s ease;
+}
+
+/* ─── Tabs ─── */
+.tabs-bar {
+  display: flex; gap: 4px;
+  padding: 20px 32px 0;
+}
+.tab {
+  padding: 10px 28px;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  transition: all 0.15s;
+  user-select: none;
+}
+.tab:hover { color: var(--text2); }
+.tab.active {
+  background: var(--surface2);
+  color: var(--text);
+  border-color: var(--border2);
+  border-bottom: 2px solid var(--accent);
+}
+
+/* ─── Main panel ─── */
+.panel {
+  margin: 0 32px 40px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 0 8px 8px 8px;
+  padding: 28px;
+}
+
+/* ─── Chart header ─── */
+.chart-header {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap; gap: 12px;
+}
+.chart-title { font-size: 15px; font-weight: 700; }
+.chart-title span {
+  display: block; font-size: 11px;
+  font-weight: 400; color: var(--muted); margin-top: 2px;
+}
+.chart-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mode-toggle {
+  display: flex;
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  overflow: hidden;
+}
+.mode-btn {
+  padding: 5px 14px;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--muted);
+  border: none;
+  transition: all 0.15s;
+  user-select: none;
+}
+.mode-btn:hover { color: var(--text2); }
+.mode-btn.active { background: var(--accent); color: #fff; }
+.filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  padding: 5px 16px;
+  border-radius: 20px; font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border2);
+  background: var(--surface);
+  color: var(--muted);
+  transition: all 0.15s;
+  user-select: none;
+}
+.chip:hover { border-color: var(--accent); color: var(--text2); }
+.chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ─── Chart canvas ─── */
+.chart-wrap {
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+}
+.chart-wrap::-webkit-scrollbar { height: 6px; }
+.chart-wrap::-webkit-scrollbar-track { background: var(--surface); }
+.chart-wrap::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+.chart-scroll {
+  position: relative;
+  height: 400px;
+  min-width: 100%;
+}
+
+/* ─── Chart loading overlay ─── */
+.chart-loader {
+  position: absolute; inset: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s;
+  border-radius: 4px;
+}
+.chart-loader.visible { opacity: 0.93; pointer-events: all; }
+.chart-loader .spinner { width: 28px; height: 28px; }
+
+/* ─── Legend ─── */
+.legend {
+  display: flex; flex-wrap: wrap;
+  gap: 10px; margin-top: 16px;
+}
+.legend-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--text2);
+  cursor: pointer; padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  transition: all 0.15s;
+  user-select: none;
+}
+.legend-item:hover { border-color: var(--border2); }
+.legend-item.muted { opacity: 0.35; }
+.legend-none { color: var(--text2); opacity: 0.6; font-size: 11px; letter-spacing: 0.03em; }
+.legend-none:hover { opacity: 1; }
+.legend-color {
+  width: 24px; height: 4px; flex-shrink: 0; overflow: visible;
+}
+
+/* ─── Divider ─── */
+.divider {
+  height: 1px; background: var(--border);
+  margin: 28px 0;
+}
+
+/* ─── Standings table ─── */
+.standings-title {
+  font-size: 14px; font-weight: 700;
+  margin-bottom: 14px; color: var(--text2);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  font-size: 11px;
+}
+.table-wrap { overflow-x: auto; }
+table {
+  width: 100%; border-collapse: collapse;
+  font-size: 13px;
+}
+thead th {
+  text-align: left; padding: 10px 14px;
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted);
+  border-bottom: 1px solid var(--border2);
+  white-space: nowrap;
+}
+tbody tr {
+  border-bottom: 1px solid var(--row-border);
+  transition: background 0.12s;
+  cursor: default;
+}
+tbody tr:hover { background: var(--row-hover); }
+tbody td { padding: 11px 14px; vertical-align: middle; }
+.td-pos {
+  font-weight: 800; font-size: 14px;
+  color: var(--muted); width: 40px;
+}
+.td-pos.top3 { color: var(--accent2); }
+.td-pos.p1 { color: var(--accent); }
+.td-flag { width: 32px; }
+.td-name { font-weight: 600; white-space: nowrap; }
+.td-name small {
+  display: block; font-weight: 400;
+  color: var(--muted); font-size: 11px;
+  margin-top: 1px;
+}
+.td-team {
+  white-space: nowrap;
+}
+.team-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--text2);
+}
+.team-stripe {
+  width: 3px; height: 16px; border-radius: 2px;
+  flex-shrink: 0;
+}
+.td-pts {
+  font-weight: 800; font-size: 15px;
+  text-align: right; white-space: nowrap;
+}
+.td-gap {
+  font-size: 12px; color: var(--muted);
+  text-align: right; white-space: nowrap;
+}
+.td-trend { width: 80px; }
+.spark-bar {
+  height: 4px; background: var(--border);
+  border-radius: 2px; overflow: hidden;
+}
+.spark-fill { height: 100%; border-radius: 2px; }
+.td-wins {
+  text-align: center; font-size: 12px;
+  color: var(--text2);
+}
+
+/* ─── Race calendar strip ─── */
+.calendar-section { margin-top: 28px; }
+.calendar-section .standings-title { margin-bottom: 12px; }
+.calendar-list {
+  display: flex; gap: 8px;
+  overflow-x: auto; padding-bottom: 6px;
+}
+.calendar-list::-webkit-scrollbar { height: 4px; }
+.calendar-list::-webkit-scrollbar-track { background: var(--surface); }
+.calendar-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.race-pill {
+  flex-shrink: 0;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 11px;
+  text-align: center;
+  min-width: 64px;
+}
+.race-pill.done {
+  border-color: var(--accent);
+  background: var(--done-bg);
+}
+.race-pill.next {
+  border-color: var(--accent2);
+  background: var(--next-bg);
+}
+.race-pill .abbr {
+  font-weight: 800; font-size: 13px;
+  margin-bottom: 2px;
+}
+.race-pill.done .abbr { color: var(--accent); }
+.race-pill.next .abbr { color: var(--accent2); }
+.race-pill .round-num {
+  color: var(--muted); font-size: 10px;
+}
+
+/* ─── Theme toggle button ─── */
+/* Lives in the dark header, so colours are always hardcoded dark */
+#theme-toggle {
+  display: flex; align-items: center; justify-content: center;
+  background: transparent;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  padding: 0;
+  width: 36px; height: 36px;
+  cursor: pointer;
+  font-size: 17px;
+  line-height: 1;
+  color: #aaa;
+  transition: border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+#theme-toggle:hover {
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* ─── Season selector ─── */
+.season-selector { position: relative; }
+.season-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: #1a1a1a; border: 1px solid #3a3a3a;
+  border-radius: 6px; padding: 0 4px 0 14px;
+  height: 36px; cursor: pointer;
+  transition: border-color 0.15s; user-select: none;
+}
+.season-btn:hover, .season-btn.open { border-color: var(--accent); }
+.season-btn .year-label {
+  font-size: 15px; font-weight: 800; color: #fff; letter-spacing: 0.04em;
+}
+.season-btn .chevron {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 4px;
+  color: #888; font-size: 11px;
+  transition: background 0.15s, color 0.15s, transform 0.15s;
+}
+.season-btn:hover .chevron { background: #2a2a2a; color: #fff; }
+.season-btn.open .chevron { color: var(--accent); transform: rotate(180deg); }
+
+.season-dropdown {
+  position: absolute; top: calc(100% + 8px); left: 0;
+  background: #1a1a1a; border: 1px solid #3a3a3a;
+  border-radius: 8px; padding: 6px; min-width: 190px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6); z-index: 300;
+  opacity: 0; transform: translateY(-6px);
+  pointer-events: none;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.season-dropdown.open { opacity: 1; transform: translateY(0); pointer-events: all; }
+.dropdown-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+  color: #444; padding: 6px 10px 4px; font-weight: 600;
+}
+.season-option {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 12px; border-radius: 5px; cursor: pointer;
+  font-size: 14px; font-weight: 600; color: #bbb;
+  transition: background 0.1s, color 0.1s;
+}
+.season-option:hover { background: #2a2a2a; color: #fff; }
+.season-option.selected { color: #fff; background: #2a0a0a; }
+.season-option.selected .opt-year { color: var(--accent); }
+.season-option .opt-meta { font-size: 11px; font-weight: 400; color: #555; }
+.season-option.selected .opt-meta { color: #844; }
+.season-option .opt-check { color: var(--accent); font-size: 12px; opacity: 0; }
+.season-option.selected .opt-check { opacity: 1; }
+.dropdown-divider { height: 1px; background: #2a2a2a; margin: 4px 6px; }
+.dropdown-historical {
+  max-height: 300px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+.dropdown-historical::-webkit-scrollbar { width: 4px; }
+.dropdown-historical::-webkit-scrollbar-track { background: transparent; }
+.dropdown-historical::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 2px; }
+
+/* ─── Historical season banner ─── */
+#hist-banner {
+  display: none;
+  background: #0d1520; border-bottom: 1px solid #1a2a3a;
+  padding: 8px 32px; font-size: 12px; color: #5a7a9a;
+  align-items: center; gap: 10px;
+}
+#hist-banner a {
+  color: #5090cc; text-decoration: underline; cursor: pointer;
+  margin-left: 4px;
+}
+#hist-banner a:hover { color: #70b0ee; }
+
+/* ─── Career view ─── */
+.career-header {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 20px; flex-wrap: wrap;
+}
+.career-back {
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--text2); padding: 6px 14px; border-radius: 6px;
+  font-size: 13px; cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+}
+.career-back:hover { border-color: var(--accent); color: var(--text); }
+.career-title { font-size: 17px; font-weight: 700; }
+.career-title span {
+  display: block; font-size: 11px;
+  font-weight: 400; color: var(--muted); margin-top: 2px;
+}
+.ctor-picker { position: relative; display: inline-block; }
+.ctor-picker-btn {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  background: none; border: none; padding: 0;
+  font-size: 17px; font-weight: 700; color: var(--text) !important;
+  transition: color 0.15s;
+}
+.ctor-picker-btn:hover { color: var(--accent); }
+.ctor-picker-chevron { font-size: 12px; color: var(--muted); transition: transform 0.15s; }
+.ctor-picker-btn.open .ctor-picker-chevron { transform: rotate(180deg); color: var(--accent); }
+.ctor-picker-list {
+  position: absolute; top: calc(100% + 6px); left: 0;
+  background: #1a1a1a; border: 1px solid #3a3a3a;
+  border-radius: 8px; padding: 6px; min-width: 210px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6); z-index: 300;
+  opacity: 0; transform: translateY(-6px); pointer-events: none;
+  transition: opacity 0.15s, transform 0.15s;
+  max-height: 300px; overflow-y: auto;
+}
+.ctor-picker-list.open { opacity: 1; transform: translateY(0); pointer-events: all; }
+.ctor-picker-option {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 5px; cursor: pointer;
+  font-size: 14px; font-weight: 600; color: var(--text2);
+  transition: background 0.1s, color 0.1s;
+}
+.ctor-picker-option:hover { background: #2a2a2a; color: var(--text); }
+.ctor-picker-option.selected { color: var(--text); background: #2a0a0a; }
+.ctor-picker-option .team-stripe { width: 3px; height: 16px; border-radius: 2px; flex-shrink: 0; }
+.career-scroll { height: 340px; position: relative; min-width: 100%; }
+tbody tr.clickable { cursor: pointer; }
+tbody tr.clickable:hover td { background: var(--row-hover); }
+
+/* ─── Responsive ─── */
+@media (max-width: 900px) {
+  header { padding: 0 16px; }
+  .next-race-pill { display: none; }
+  .stats-strip { grid-template-columns: repeat(2, 1fr); }
+  .tabs-bar { padding: 16px 16px 0; }
+  .panel { margin: 0 16px 32px; padding: 18px; }
+}
+@media (max-width: 600px) {
+  .logo h1 { font-size: 16px; }
+  .stats-strip { grid-template-columns: 1fr 1fr; }
+  .chart-wrap { padding: 10px; }
+  .chart-scroll { height: 280px; }
+  .filter-chips .chip { padding: 4px 10px; font-size: 11px; }
+}
