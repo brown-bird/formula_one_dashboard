@@ -168,7 +168,7 @@ export function renderCalendar(schedule, completedRounds) {
     pill.className = 'race-pill' + (isDone ? ' done' : isNext ? ' next' : '');
     pill.innerHTML = `
       <div class="abbr">${abbr}</div>
-      <div class="round-num">R${race.round}</div>`;
+      <div class="round-num">${race.round ? 'R' + race.round : '-'}</div>`;
     pill.title = `${race.raceName} · ${fmtDate(race.date)}`;
     el.appendChild(pill);
   });

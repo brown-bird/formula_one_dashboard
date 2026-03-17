@@ -199,9 +199,9 @@ export async function showDriverCareer(driverId, driverName) {
           ${team.name}
         </span>` : '—'}
       </td>
-      <td class="td-pts" style="text-align:right">P${sd.position}</td>
-      <td class="td-pts" style="text-align:right">${sd.points}</td>
-      <td class="td-wins" style="text-align:right">${sd.wins}</td>`;
+      <td class="td-pts" style="text-align:right">${sd.position ? 'P' + sd.position : '-'}</td>
+      <td class="td-pts" style="text-align:right">${sd.points ?? '-'}</td>
+      <td class="td-wins" style="text-align:right">${sd.wins ?? '-'}</td>`;
     tr.className = 'clickable';
     tr.title = `View ${s.season} season`;
     tr.addEventListener('click', () => goToSeasonYear(s.season, 'drivers'));
@@ -435,9 +435,9 @@ export async function showConstructorCareer(constructorId, constructorName) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="td-pos${isChamp ? ' p1' : ''}">${s.season}${isChamp ? ' 🏆' : ''}</td>
-      <td class="td-pts" style="text-align:right">P${sd.position}</td>
-      <td class="td-pts" style="text-align:right">${sd.points}</td>
-      <td class="td-wins" style="text-align:right">${sd.wins}</td>`;
+      <td class="td-pts" style="text-align:right">${sd.position ? 'P' + sd.position : '-'}</td>
+      <td class="td-pts" style="text-align:right">${sd.points ?? '-'}</td>
+      <td class="td-wins" style="text-align:right">${sd.wins ?? '-'}</td>`;
     tr.className = 'clickable';
     tr.title = `View ${s.season} season`;
     tr.addEventListener('click', () => goToSeasonYear(s.season, 'constructors'));
