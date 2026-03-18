@@ -9,7 +9,8 @@ import { setChartLoading, switchTab, setFilter, setChartMode } from './ui.js';
 import {
   buildDropdown, selectYear, toggleDropdown, updateSeasonChrome, closeDropdown,
 } from './season-selector.js';
-import { hideDriverCareer, toggleCtorPicker, closeCtorPicker, toggleCompareMode, runSeasonCompare } from './career.js';
+import { hideDriverCareer, showDriverCareer, showConstructorCareer, toggleCtorPicker, closeCtorPicker, toggleCompareMode, runSeasonCompare } from './career.js';
+import { pushState, readHash } from './router.js';
 
 export async function loadSeason(year) {
   const overlay = document.getElementById('loading-overlay');
@@ -76,6 +77,7 @@ export async function loadSeason(year) {
       overlay.classList.add('hidden');
       setTimeout(() => overlay.remove(), 500);
     }
+    pushState();
 
   } catch (err) {
     console.error(err);
@@ -120,6 +122,26 @@ document.addEventListener('click', e => {
   document.getElementById('theme-icon').textContent = saved === 'light' ? '🌙' : '☀️';
 })();
 
-// Build dropdown and kick off initial load
+// Restore state from URL hash, falling back to defaults
+const _saved = readHash();
+const _initYear = (_saved?.s && !isNaN(parseInt(_saved.s, 10))) ? parseInt(_saved.s, 10) : CURRENT_YEAR;
+state.season = _initYear;
+
 buildDropdown();
-loadSeason(CURRENT_YEAR);
+loadSeason(_initYear).then(() => {
+  if (!_saved) return;
+  if (_saved.career === 'driver' && _saved.id) {
+    const driver = state.driverData.find(d => d.id === _saved.id);
+    showDriverCareer(_saved.id, driver?.name ?? _saved.id);
+  } else if (_saved.career === 'ctor' && _saved.id) {
+    const ctor = state.ctorData.find(c => c.id === _saved.id);
+    showConstructorCareer(_saved.id, ctor?.name ?? _saved.id);
+  } else {
+    if (_saved.t && _saved.t !== 'drivers') switchTab(_saved.t);
+    if (_saved.f !== undefined) {
+      const f = _saved.f === 'h2h' ? 'h2h' : parseInt(_saved.f, 10);
+      if (f !== 5) setFilter(f);
+    }
+    if (_saved.m && _saved.m !== 'points') setChartMode(_saved.m);
+  }
+});

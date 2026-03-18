@@ -7,6 +7,7 @@ import { setFilter } from './ui.js';
 import { renderChart } from './chart.js';
 import { selectYear } from './season-selector.js';
 import { setChartLoading } from './ui.js';
+import { pushState } from './router.js';
 
 export async function fetchDriverCareer(driverId) {
   // Step 1: get all seasons the driver competed in
@@ -28,6 +29,7 @@ export async function fetchDriverCareer(driverId) {
 export async function showDriverCareer(driverId, driverName) {
   if (state.compareMode) exitCompareMode();
   state.careerDriverId = driverId;
+  pushState();
   document.getElementById('career-compare-controls').style.display = 'flex';
   document.getElementById('season-view').style.display = 'none';
   const careerEl = document.getElementById('career-view');
@@ -248,6 +250,7 @@ export function hideDriverCareer() {
   state.careerYears = [];
   document.getElementById('career-view').style.display = 'none';
   document.getElementById('season-view').style.display = '';
+  pushState();
 }
 
 export function toggleCtorPicker() {
@@ -287,6 +290,7 @@ export async function fetchConstructorCareer(constructorId) {
 
 export async function showConstructorCareer(constructorId, constructorName) {
   state.careerConstructorId = constructorId;
+  pushState();
   document.getElementById('career-compare-controls').style.display = 'none';
   document.getElementById('season-view').style.display = 'none';
   document.getElementById('career-view').style.display = '';

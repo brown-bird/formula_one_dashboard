@@ -2,6 +2,7 @@ import { state } from './state.js';
 import { renderChart } from './chart.js';
 import { renderTable } from './table.js';
 import { hideDriverCareer } from './career.js';
+import { pushState } from './router.js';
 
 export function setChartLoading(id, show) {
   document.getElementById(id)?.classList.toggle('visible', show);
@@ -14,6 +15,7 @@ export function setChartMode(mode) {
   document.getElementById('chart-subtitle').textContent =
     mode === 'position' ? 'Finishing position per race' : 'Cumulative championship points per race';
   renderChart();
+  pushState();
 }
 
 export function switchTab(tab) {
@@ -53,6 +55,7 @@ export function switchTab(tab) {
 
   renderChart();
   renderTable();
+  pushState();
 }
 
 export function setFilter(n, redraw = true) {
@@ -70,5 +73,5 @@ export function setFilter(n, redraw = true) {
     state.h2hPick = [];
     state.hiddenSeries.clear();
   }
-  if (redraw) renderChart();
+  if (redraw) { renderChart(); pushState(); }
 }
