@@ -102,6 +102,25 @@ describe('fetchAllRaces', () => {
     expect(result[0].SprintResults).toHaveLength(2);
   });
 
+  it('merges QualifyingResults for a round split across pages', async () => {
+    const page1Races = [{ round: '6', raceName: 'R6', QualifyingResults: [{ position: '19', Driver: { driverId: 'stroll' } }] }];
+    const page2Races = [{ round: '6', raceName: 'R6', QualifyingResults: [{ position: '20', Driver: { driverId: 'bearman' } }] }];
+
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => makeApiResponse(page1Races, 101),
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => makeApiResponse(page2Races, 101),
+      });
+
+    const result = await fetchAllRaces('2025/qualifying');
+    expect(result[0].QualifyingResults).toHaveLength(2);
+    expect(result[0].QualifyingResults.map(q => q.Driver.driverId)).toEqual(['stroll', 'bearman']);
+  });
+
   it('returns results sorted ascending by round number', async () => {
     // Page 1 returns rounds out of order
     const page1Races = [makeRace(3), makeRace(1), makeRace(2)];

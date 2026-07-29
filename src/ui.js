@@ -2,6 +2,7 @@ import { state } from './state.js';
 import { renderChart } from './chart.js';
 import { renderTable } from './table.js';
 import { hideDriverCareer } from './career.js';
+import { showGapView, hideGapView } from './gap.js';
 import { pushState } from './router.js';
 
 export function setChartLoading(id, show) {
@@ -20,6 +21,9 @@ export function setChartMode(mode) {
 
 export function switchTab(tab) {
   hideDriverCareer();
+  if (tab === 'gap') { showGapView(); return; }
+  hideGapView();
+  document.getElementById('season-view').style.display = '';
   state.tab = tab;
   state.hiddenSeries.clear();
   state.h2hPick = [];

@@ -103,6 +103,7 @@
 <div class="tabs-bar">
   <div class="tab active" id="tab-drivers" onclick="switchTab('drivers')">🏎&nbsp; Drivers</div>
   <div class="tab"         id="tab-ctors"   onclick="switchTab('constructors')">🏭&nbsp; Constructors</div>
+  <div class="tab"         id="tab-gap"     onclick="switchTab('gap')">⏱&nbsp; Gap to Leader</div>
 </div>
 
 <!-- Main panel -->
@@ -202,6 +203,55 @@
     </div>
   </div>
 </div><!-- /career-view -->
+
+<!-- Gap to Leader view -->
+<div id="gap-view" style="display:none">
+
+  <div class="chart-header">
+    <div class="chart-title">
+      Gap to Leader
+      <span id="gap-subtitle"></span>
+    </div>
+    <div class="chart-controls">
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="gap-ses-race"  onclick="setGapSession('race')">Race</button>
+        <button class="mode-btn"        id="gap-ses-quali" onclick="setGapSession('quali')">Qualifying</button>
+      </div>
+      <div class="mode-toggle" id="gap-grain-toggle">
+        <button class="mode-btn active" id="gap-grain-drivers" onclick="setGapGrain('drivers')">Drivers</button>
+        <button class="mode-btn"        id="gap-grain-teams"   onclick="setGapGrain('teams')">Teams</button>
+      </div>
+      <select class="compare-select" id="gap-round-select" onchange="onGapRoundChange(this.value)"></select>
+      <select class="compare-select" id="gap-team-select"  onchange="onGapTeamChange(this.value)"></select>
+      <span id="gap-spinner" class="spinner compare-spinner" style="display:none"></span>
+    </div>
+  </div>
+
+  <div class="gap-callout" id="gap-callout"></div>
+
+  <div class="chart-wrap" id="gap-chart-wrap">
+    <div class="gap-scroll" id="gap-scroll">
+      <div class="chart-loader" id="gap-chart-loader"><div class="spinner"></div></div>
+      <canvas id="gap-chart"></canvas>
+    </div>
+  </div>
+
+  <div class="legend" id="gap-legend"></div>
+
+  <div id="gap-empty" style="display:none"></div>
+
+  <div id="gap-table-section">
+    <div class="divider"></div>
+    <div class="standings-title" id="gap-table-title"></div>
+    <div class="table-wrap">
+      <table>
+        <thead id="gap-table-head"></thead>
+        <tbody id="gap-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /gap-view -->
 
 </div>
 

@@ -21,4 +21,14 @@ export const state = {
   compareMode:   false,
   comparePick:   [null, null],
   compareChart:  null,
+  // Gap to Leader view. `tab` stays 'drivers'|'constructors' — the standings
+  // chart, table and filters all branch on it — so this view has its own flag.
+  gapView:       false,
+  gapSession:    'race',     // 'race' | 'quali'
+  gapGrain:      'drivers',  // 'drivers' | 'teams'
+  gapRound:      null,       // round number as a string, or 'all'
+  gapTeam:       null,       // constructorId
+  gapChart:      null,
+  rawRaces:      [],         // raw race payloads, kept for FastestLap times
+  qualiRaces:    null,       // lazily fetched, per season
 };

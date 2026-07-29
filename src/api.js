@@ -12,6 +12,9 @@ export async function apiFetch(path, _attempt = 0) {
   return res.json();
 }
 
+// Per-race arrays that can be split across API pages and need merging
+const RACE_LIST_KEYS = ['Results', 'SprintResults', 'QualifyingResults'];
+
 // Fetch all race results across API pages, merging by round
 export async function fetchAllRaces(basePath) {
   const PAGE = 100;
@@ -29,8 +32,10 @@ export async function fetchAllRaces(basePath) {
     for (const page of pages) {
       for (const race of page.MRData.RaceTable.Races) {
         if (byRound[race.round]) {
-          const resultsKey = race.Results ? 'Results' : race.SprintResults ? 'SprintResults' : null;
-          if (resultsKey) byRound[race.round][resultsKey].push(...race[resultsKey]);
+          const resultsKey = RACE_LIST_KEYS.find(k => race[k]);
+          const target = resultsKey && byRound[race.round][resultsKey];
+          if (target) target.push(...race[resultsKey]);
+          else if (resultsKey) byRound[race.round][resultsKey] = [...race[resultsKey]];
         } else {
           byRound[race.round] = race;
         }

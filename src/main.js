@@ -10,6 +10,7 @@ import {
   buildDropdown, selectYear, toggleDropdown, updateSeasonChrome, closeDropdown,
 } from './season-selector.js';
 import { hideDriverCareer, showDriverCareer, showConstructorCareer, toggleCtorPicker, closeCtorPicker, toggleCompareMode, runSeasonCompare } from './career.js';
+import { showGapView, setGapSession, setGapGrain, onGapRoundChange, onGapTeamChange } from './gap.js';
 import { pushState, readHash } from './router.js';
 
 export async function loadSeason(year) {
@@ -19,6 +20,7 @@ export async function loadSeason(year) {
     document.getElementById('loading-text').textContent = `Fetching ${year} season data…`;
   }
   setChartLoading('main-chart-loader', true);
+  state.qualiRaces = null;   // drop the previous season's qualifying cache
 
   try {
     const [scheduleJson, resultRaces, sprintRaces] = await Promise.all([
@@ -50,6 +52,8 @@ export async function loadSeason(year) {
         }
       });
     }
+
+    state.rawRaces = resultRaces;
 
     if (!resultRaces.length) {
       state.schedule   = schedule;
@@ -101,6 +105,10 @@ window.hideDriverCareer   = hideDriverCareer;
 window.toggleCtorPicker   = toggleCtorPicker;
 window.toggleCompareMode  = toggleCompareMode;
 window.runSeasonCompare   = runSeasonCompare;
+window.setGapSession      = setGapSession;
+window.setGapGrain        = setGapGrain;
+window.onGapRoundChange   = onGapRoundChange;
+window.onGapTeamChange    = onGapTeamChange;
 
 // Close dropdown on outside click
 document.addEventListener('click', e => {
@@ -130,7 +138,13 @@ state.season = _initYear;
 buildDropdown();
 loadSeason(_initYear).then(() => {
   if (!_saved) return;
-  if (_saved.career === 'driver' && _saved.id) {
+  if (_saved.v === 'gap') {
+    if (_saved.gs) state.gapSession = _saved.gs;
+    if (_saved.gg) state.gapGrain   = _saved.gg;
+    if (_saved.gr) state.gapRound   = _saved.gr;
+    if (_saved.gt) state.gapTeam    = _saved.gt;
+    showGapView();
+  } else if (_saved.career === 'driver' && _saved.id) {
     const driver = state.driverData.find(d => d.id === _saved.id);
     showDriverCareer(_saved.id, driver?.name ?? _saved.id);
   } else if (_saved.career === 'ctor' && _saved.id) {

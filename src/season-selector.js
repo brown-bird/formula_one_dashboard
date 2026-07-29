@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { CURRENT_YEAR, FIRST_YEAR, SEASON_RACE_COUNTS } from './constants.js';
 import { hideDriverCareer } from './career.js';
+import { hideGapView } from './gap.js';
 import { setFilter } from './ui.js';
 import { loadSeason } from './main.js';
 
@@ -61,6 +62,10 @@ export async function selectYear(year) {
   if (year === state.season) { closeDropdown(); return; }
   closeDropdown();
   hideDriverCareer();
+  hideGapView();
+  document.getElementById('season-view').style.display = '';
+  state.gapRound = null;
+  state.gapTeam  = null;
   state.season = year;
   state.hiddenSeries.clear();
   state.h2hPick = [];

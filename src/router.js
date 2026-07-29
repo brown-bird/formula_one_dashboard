@@ -7,7 +7,13 @@ export function pushState() {
   if (state.tab !== 'drivers')    p.set('t', state.tab);
   if (state.filter !== 5)         p.set('f', state.filter);
   if (state.chartMode !== 'points') p.set('m', state.chartMode);
-  if (state.careerDriverId) {
+  if (state.gapView) {
+    p.set('v', 'gap');
+    if (state.gapSession !== 'race')    p.set('gs', state.gapSession);
+    if (state.gapGrain !== 'drivers')   p.set('gg', state.gapGrain);
+    if (state.gapRound)                 p.set('gr', state.gapRound);
+    if (state.gapTeam)                  p.set('gt', state.gapTeam);
+  } else if (state.careerDriverId) {
     p.set('career', 'driver');
     p.set('id', state.careerDriverId);
   } else if (state.careerConstructorId) {
